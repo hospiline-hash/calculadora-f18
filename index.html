@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Decaimento - F-18 / Gálio</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: 0 auto; background-color: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { margin-top: 15px; width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+        .result { margin-top: 20px; padding: 10px; background: #e9ecef; border-radius: 4px; font-weight: bold; }
+        .stats { background: #e2f0d9; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .loading { font-size: 12px; color: #666; font-style: italic; }
+        .chart-container { position: relative; margin-top: 20px; width: 100%; height: 350px; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .card:not(.stats), button { display: none !important; }
+            .stats { box-shadow: none; border: 1px solid #ccc; width: 100%; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header">
+        <h2>Calculadora de Dose por Peso / Volume</h2>
+    </div>
+
+    <label for="radiofarmaco">Selecione o Radiofármaco:</label>
+    <select id="radiofarmaco" onchange="gerarSimulacaoGrafica()">
+        <option value="109.8">FDG (¹⁸F-FDG) - Flúor-18 (Meia-vida: 109,8 min)</option>
+        <option value="67.7">Gálio-68 (⁶⁸Ga) - Gálio-68 (Meia-vida: 67,7 min)</option>
+        <option value="4698">Gálio-67 (⁶⁷Ga) - Gálio-67 (Meia-vida: 78,3 horas)</option>
+    </select>
+    
+    <label for="horaInicioLote">Horário Inicial de Referência do Lote:</label>
+    <input type="time" id="horaInicioLote" value="07:30" onchange="gerarSimulacaoGrafica()">
+
+    <label for="a0">Atividade Inicial / Lote (mCi):</label>
+    <input type="number" id="a0" value="100" step="any">
+
+    <label for="horaInjecao">Horário da Injeção do Paciente (HH:MM):</label>
+    <input type="time" id="horaInjecao" value="08:30">
+
+    <label for="peso">Peso do Paciente (kg):</label>
+    <input type="number" id="peso" value="70" step="any" placeholder="Ex: 70">
+
+    <label for="subtle">Fator de Correção Subtle:</label>
+    <input type="number" id="subtle" value="0.8" step="any">
+
+    <button onclick="calcular()">Calcular Dose e Atualizar Fluxo</button>
+
+    <div class="result" id="resultado">
+        Preencha os dados do paciente e clique em calcular.
+    </div>
+</div>
+
+<div class="card">
+    <h3>Curva do Decaimento e Múltiplas Doses</h3>
+    <p style="font-size: 13px; color: #555;">Eventos do dia (Horário = Dose mCi):</p>
+    <textarea id="horariosDoses" rows="4" oninput="gerarSimulacaoGrafica()">07:30 = 100
+08:30 = 5.6</textarea>
+
+    <div class="chart-container">
+        <canvas id="graficoDecaimento"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Lista para Pedido (Distribuidora)</h3>
+    <textarea id="listaPedido" rows="3" readonly style="background: #e9ecef; font-family: monospace;">Solicitação de Lote / Reposição:
+07:30 = 100
+08:30 = 5.6</textarea>
+    <button class="btn-warning" onclick="baixarTxtPedido()">Baixar Lista em TXT</button>
+</div>
+
+<div class="card stats">
+    <h3>Relatório Consolidado (Nuvem) <span id="sync-status" class="loading">Carregando dados...</span></h3>
+    <p>Total de Pacientes Atendidos: <span id="stat-total">0</span></p>
+    <p>Doses Economizadas (Estimativa): <span id="stat-economia">0</span> mCi</p>
+    
+    <button class="btn-success" onclick="window.print()">Imprimir / Salvar Resumo (PDF)</button>
+    <button class="btn-secondary" onclick="zerarBancoNuvem()">Zerar Relatório na Nuvem</button>
+</div>
+
+<script>
+    const BIN_ID = "6abe5e5effd5d1605342b486";
+    const API_KEY = "$2a$10$NipvyBy7s7OM50qZMajLN.04okYLf7FrONhthX.4awurbixP9ye3S";
+    let meuGrafico = null;
+
+    window.onload = function() {
+        carregarDadosNuvem();
+        gerarSimulacaoGrafica();
+    };
+
+    function obterMeiaVidaMinutos() {
+        return parseFloat(document.getElementById('radiofarmaco').value);
+    }
+
+    function converterHoraParaMinutos(strHora) {
+        const partes = strHora.split(':');
+        return parseInt(partes[0]) * 60 + parseInt(partes[1]);
+    }
+
+    function calcular() {
+        try {
+            const a0 = parseFloat(document.getElementById('a0').value);
+            const peso = parseFloat(document.getElementById('peso').value);
+            const subtle = parseFloat(document.getElementById('subtle').value);
+            const horaInicioStr = document.getElementById('horaInicioLote').value || "07:30";
+            const horaInjecaoStr = document.getElementById('horaInjecao').value || "08:30";
+
+            if (isNaN(a0) || isNaN(peso) || isNaN(subtle)) {
+                document.getElementById('resultado').innerHTML = "Por favor, preencha todos os campos corretamente.";
+                return;
+            }
+
+            const drec = peso * 0.1 * subtle;
+
+            const minInicioLote = converterHoraParaMinutos(horaInicioStr);
+            const minInjecao = converterHoraParaMinutos(horaInjecaoStr);
+            const t = minInjecao - minInicioLote;
+
+            if (t < 0) {
+                document.getElementById('resultado').innerHTML = "O horário da injeção não pode ser anterior ao horário inicial do lote.";
+                return;
+            }
+
+            const meiaVidaMin = obterMeiaVidaMinutos();
+            const lambda = 0.693 / meiaVidaMin; 
+            const aT = a0 * Math.exp(-lambda * t);
+            const v = drec / aT;
+
+            document.getElementById('resultado').innerHTML = `
+                Dose calculada (Drec): ${drec.toFixed(2)} mCi<br>
+                Tempo decorrido (T): ${t} min | Atividade disponível A(T): ${aT.toFixed(2)} mCi<br>
+                <strong>Volume necessário (V): ${v.toFixed(4)} mL</strong>
+            `;
+
+            let txtArea = document.getElementById('horariosDoses');
+            let novaLinha = `${horaInjecaoStr} = ${drec.toFixed(2)}`;
+            if (!txtArea.value.includes(horaInjecaoStr)) {
+                txtArea.value = txtArea.value.trim() ? txtArea.value.trim() + "\n" + novaLinha : novaLinha;
+            }
+
+            atualizarListaPedido();
+            gerarSimulacaoGrafica();
+            adicionarAoBancoNuvem(drec);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function atualizarListaPedido() {
+        let txtArea = document.getElementById('horariosDoses').value.trim();
+        document.getElementById('listaPedido').value = "Solicitação de Lote / Reposição:\n" + txtArea;
+    }
+
+    function baixarTxtPedido() {
+        let texto = document.getElementById('listaPedido').value;
+        let blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+        let link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'pedido_radiofarmaco.txt';
+        link.click();
+    }
+
+    function gerarSimulacaoGrafica() {
+        try {
+            const textoDoses = document.getElementById('horariosDoses').value.trim();
+            if (!textoDoses) return;
+
+            const linhas = textoDoses.split('\n');
+            let doses = [];
+
+            linhas.forEach(linha => {
+                if (linha.includes('=')) {
+                    const partes = linha.split('=');
+                    const horaStr = partes[0].trim();
+                    const valorDose = parseFloat(partes[1].trim());
+                    if (!isNaN(valorDose)) {
+                        doses.push({
+                            minutosDesdeDia: converterHoraParaMinutos(horaStr),
+                            dose: valorDose
+                        });
+                    }
+                }
+            });
+
+            if (doses.length === 0) return;
+            doses.sort((a, b) => a.minutosDesdeDia - b.minutosDesdeDia);
+
+            const horaInicioStr = document.getElementById('horaInicioLote').value || "07:30";
+            const inicioSimulacao = converterHoraParaMinutos(horaInicioStr);
+            const fimSimulacao = inicioSimulacao + 420; 
+            const meiaVidaMin = obterMeiaVidaMinutos();
+            const lambda = 0.693 / meiaVidaMin;
+
+            let labels = [];
+            let dadosCurva = [];
+
+            for (let m = inicioSimulacao; m <= fimSimulacao; m += 10) {
+                let horaAtualStr = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+                labels.push(horaAtualStr);
+
+                let atividadeTotalMomento = 0;
+                doses.forEach(d => {
+                    if (m >= d.minutosDesdeDia) {
+                        let tempoDecorrido = m - d.minutosDesdeDia;
+                        atividadeTotalMomento += (d.dose * Math.exp(-lambda * tempoDecorrido));
+                    }
+                });
+                dadosCurva.push(atividadeTotalMomento > 0 ? atividadeTotalMomento.toFixed(2) : 0);
+            }
+
+            const ctx = document.getElementById('graficoDecaimento').getContext('2d');
+            if (meuGrafico) meuGrafico.destroy();
+
+            meuGrafico = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Atividade Restante A(t) [mCi]',
+                        data: dadosCurva,
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Atividade (mCi)' } },
+                        x: { title: { display: true, text: 'Horário do Plantão' } }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function carregarDadosNuvem() {
+        try {
+            const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { 'X-Master-Key': API_KEY }
+            });
+            if (!resposta.ok) throw new Error('Erro');
+            const resultado = await resposta.json();
+            const dados = resultado.record || resultado;
+            document.getElementById('stat-total').innerText = dados.totalPacientes || 0;
+            document.getElementById('stat-economia').innerText = (dados.totalEconomia || 0).toFixed(2);
+            document.getElementById('sync-status').innerText = "(Sincronizado)";
+        } catch (e) {
+            document.getElementById('sync-status').innerText = "(Erro de conexão)";
+        }
+    }
+
+    async function adicionarAoBancoNuvem(drec) {
+        document.getElementById('sync-status').innerText = "(Salvando...)";
+        try {
+            const resGet = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { 'X-Master-Key': API_KEY }
+            });
+            const jsonGet = await resGet.json();
+            let dados = jsonGet.record || jsonGet;
+
+            dados.totalPacientes = (dados.totalPacientes || 0) + 1;
+            dados.totalEconomia = (dados.totalEconomia || 0) + (drec * 0.2);
+
+            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+                body: JSON.stringify(dados)
+            });
+            carregarDadosNuvem();
+        } catch (e) {
+            document.getElementById('sync-status').innerText = "(Erro ao salvar)";
+        }
+    }
+
+    async function zerarBancoNuvem() {
+        if (confirm("Deseja realmente zerar o relatório consolidado na nuvem?")) {
+            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+                body: JSON.stringify({ totalPacientes: 0, totalEconomia: 0 })
+            });
+            carregarDadosNuvem();
+        }
+    }
+</script>
+
+</body>
+</html>
