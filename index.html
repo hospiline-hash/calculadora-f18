@@ -49,7 +49,7 @@
     <input type="time" id="horaInicioLote" value="07:30" onchange="processarSimulacaoCompleta()">
 
     <label for="a0">Atividade Inicial / Lote (mCi):</label>
-    <input type="number" id="a0" value="100" step="any" onchange="processarSimulacaoCompleta()">
+    <input type="number" id="a0" value="10" step="any" onchange="processarSimulacaoCompleta()">
 
     <label for="horaInjecao">Horário da Injeção do Paciente (HH:MM):</label>
     <input type="time" id="horaInjecao" value="08:00">
@@ -75,7 +75,7 @@
 </div>
 
 <div class="card">
-    <h3>Curva do Decaimento e Reposições Automáticas</h3>
+    <h3>Curva do Decaimento e Reposições Automáticas (Teto Máx: 20 mCi)</h3>
     <div class="chart-container">
         <canvas id="graficoDecaimento"></canvas>
     </div>
@@ -83,7 +83,7 @@
 
 <div class="card">
     <h3>Lista para Pedido (Distribuidora - TXT)</h3>
-    <textarea id="listaPedido" rows="4" readonly style="background: #e9ecef; font-family: monospace;"></textarea>
+    <textarea id="listaPedido" rows="5" readonly style="background: #e9ecef; font-family: monospace;"></textarea>
     <button class="btn-warning" onclick="baixarTxtPedido()">Baixar Lista em TXT</button>
 </div>
 
@@ -129,7 +129,6 @@
         let txtArea = document.getElementById('listaPacientes');
         let novaLinha = `${horaInjecaoStr} = ${peso}`;
         
-        // Adiciona e mantém organizado por horário
         let linhas = txtArea.value.trim().split('\n');
         linhas.push(novaLinha);
         txtArea.value = linhas.join('\n');
@@ -142,7 +141,9 @@
             const textoPacientes = document.getElementById('listaPacientes').value.trim();
             if (!textoPacientes) return;
 
-            const a0Inicial = parseFloat(document.getElementById('a0').value) || 100;
+            let a0Inicial = parseFloat(document.getElementById('a0').value) || 10;
+            if (a0Inicial > 20) a0Inicial = 20; // Garante teto máximo inicial
+
             const subtle = parseFloat(document.getElementById('subtle').value) || 0.8;
             const horaInicioStr = document.getElementById('horaInicioLote').value || "07:30";
             const minInicioLote = converterHoraParaMinutos(horaInicioStr);
@@ -150,7 +151,7 @@
             const lambda = 0.693 / meiaVidaMin;
 
             let pacientes = [];
-            textoPacientes.split('\nforEach' in Array.prototype ? '\n' : '\n').forEach(linha => {
+            textoPacientes.split('\n').forEach(linha => {
                 if (linha.includes('=')) {
                     let partes = linha.split('=');
                     let horaStr = partes[0].trim();
@@ -169,96 +170,72 @@
             if (pacientes.length === 0) return;
             pacientes.sort((a, b) => a.minutos - b.minutos);
 
-            // --- LOOP DE AVALIAÇÃO DE ESTOQUE E REPOSIÇÃO ---
             let estoqueAtual = a0Inicial;
             let ultimoMinutoAvaliado = minInicioLote;
-            let pedidosReposicao = []; // Armazenará os horários e quantidade de pedidos (sempre 10 mCi)
+            let pedidosReposicao = [];
 
-            // O primeiro paciente no horário inicial já consome do lote inicial
-            let historicoEventos = [];
-            
-            pacientes.forEach((pac, index) => {
-                // Calcula o decaimento desde o último evento até o paciente atual
+            pacientes.forEach((pac) => {
                 let deltaT = pac.minutos - ultimoMinutoAvaliado;
                 if (deltaT > 0) {
                     estoqueAtual = estoqueAtual * Math.exp(-lambda * deltaT);
                 }
                 ultimoMinutoAvaliado = pac.minutos;
 
-                // Verifica se há estoque suficiente para o paciente
+                // Se não houver atividade suficiente, pede reposição de 10 mCi respeitando o teto de 20 mCi
                 if (estoqueAtual < pac.doseNecessaria) {
-                    // Precisa pedir lote de reposição (Sempre 10 mCi no horário do atendimento)
-                    let qtdPedida = 10;
-                    pedidosReposicao.push({
-                        horaStr: pac.horaStr,
-                        quantidade: qtdPedida
-                    });
-                    estoqueAtual += qtdPedida; // Adiciona o reforço ao estoque
+                    pedidosReposicao.push(pac.horaStr);
+                    estoqueAtual += 10;
+                    if (estoqueAtual > 20) estoqueAtual = 20; // Teto máximo de 20 mCi
                 }
 
-                // Subtrai a dose injetada no paciente
                 estoqueAtual -= pac.doseNecessaria;
                 if (estoqueAtual < 0) estoqueAtual = 0;
-
-                historicoEventos.push({
-                    minutos: pac.minutos,
-                    horaStr: pac.horaStr,
-                    estoqueAposDose: estoqueAtual
-                });
             });
 
-            // Monta o texto para o TXT da distribuidora
-            let textoTxt = "Solicitação de Lote / Reposição de Radiofármaco:\n";
-            textoTxt += `${horaInicioStr} = ${a0Inicial} (Lote Inicial)\n`;
-            pedidosReposicao.forEach(p => {
-                textoTxt += `${p.horaStr} = ${p.quantidade}\n`;
+            let textoTxt = `Total de pedidos de reposição (10 mCi): ${pedidosReposicao.length}\n`;
+            textoTxt += `Horários das solicitações:\n`;
+            pedidosReposicao.forEach(h => {
+                textoTxt += `${h}\n`;
             });
-            document.getElementById('listaPedido').value = textoTxt;
+            document.getElementById('listaPedido').value = textoTxt.trim();
 
             document.getElementById('resultado').innerHTML = `
                 Simulação concluída com sucesso!<br>
                 <strong>Total de pedidos de reposição (10 mCi) necessários:</strong> ${pedidosReposicao.length}
             `;
 
-            gerarGraficoCurva(minInicioLote, pacientes, pedidosReposicao, a0Inicial, lambda);
+            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, a0Inicial, lambda);
         } catch (e) {
             console.error(e);
         }
     }
 
-    function gerarGraficoCurva(minInicio, pacientes, pedidos, a0Inicial, lambda) {
-        let fimSimulacao = minInicio + 420; // Projeção de 7 horas
+    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, a0Inicial, lambda) {
+        let fimSimulacao = minInicio + 420; 
         let labels = [];
         let dadosCurva = [];
 
         for (let m = minInicio; m <= fimSimulacao; m += 10) {
             labels.push(minutosParaHoraStr(m));
 
-            // Reconstrói o estoque exato passo a passo para o gráfico
-            let est = a0Inicial;
-            let ultimoM = minInicio;
-
-            // Adiciona lote inicial
-            let estoqueSimulado = a0Inicial;
+            let ativ = a0Inicial * Math.exp(-lambda * (m - minInicio));
             
-            // Simula decaimento considerando as reposições e doses ao longo do tempo
-            // Simplificação visual para a curva contínua do Chart.js:
-            let ativTotal = a0Inicial * Math.exp(-lambda * (m - minInicio));
-            
-            pedidos.forEach(p => {
-                let minP = converterHoraParaMinutos(p.horaStr);
+            pedidosHorarios.forEach(hStr => {
+                let minP = converterHoraParaMinutos(hStr);
                 if (m >= minP) {
-                    ativTotal += p.quantidade * Math.exp(-lambda * (m - minP));
+                    ativ += 10 * Math.exp(-lambda * (m - minP));
                 }
             });
 
             pacientes.forEach(pac => {
                 if (m >= pac.minutos) {
-                    ativTotal -= pac.doseNecessaria * Math.exp(-lambda * (m - pac.minutos));
+                    ativ -= pac.doseNecessaria * Math.exp(-lambda * (m - pac.minutos));
                 }
             });
 
-            dadosCurva.push(ativTotal > 0 ? ativTotal.toFixed(2) : 0);
+            // Aplica o teto máximo de 20 mCi no gráfico
+            if (ativ > 20) ativ = 20;
+            dadosCurva.push(ativ > 0 ? ativ.toFixed(2) : 0);
         }
 
         const ctx = document.getElementById('graficoDecaimento').getContext('2d');
@@ -269,7 +246,7 @@
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Atividade Restante A(t) [mCi]',
+                    label: 'Atividade Restante A(t) [mCi] (Máx: 20 mCi)',
                     data: dadosCurva,
                     borderColor: 'rgba(0, 123, 255, 1)',
                     backgroundColor: 'rgba(0, 123, 255, 0.1)',
@@ -282,7 +259,11 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Atividade (mCi)' } },
+                    y: { 
+                        beginAtZero: true, 
+                        max: 25, // Limite superior do eixo Y ajustado próximo ao teto de 20
+                        title: { display: true, text: 'Atividade (mCi)' } 
+                    },
                     x: { title: { display: true, text: 'Horário do Plantão' } }
                 }
             }
@@ -294,7 +275,7 @@
         let blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
         let link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = 'pedido_reposicao_radiofarmaco.txt';
+        link.download = 'horarios_pedidos_radiofarmaco.txt';
         link.click();
     }
 
