@@ -38,18 +38,15 @@
         <h2>Lista de Pacientes do Dia (Horário = Peso)</h2>
     </div>
     
-    <label for="radiofarmaco">Radiofármaco Padrão (FDG - 109,8 min):</label>
     <select id="radiofarmaco" onchange="processarSimulacaoCompleta()" style="display:none;">
         <option value="109.8" selected>FDG (¹⁸F-FDG)</option>
     </select>
 
-    <p style="font-size: 13px; color: #555;">Informe cada paciente no formato <i>HH:MM = Peso</i> (ex: 07:30 = 70):</p>
-    <textarea id="listaPacientes" rows="6" oninput="processarSimulacaoCompleta()">07:30 = 70
-08:00 = 70
-08:30 = 75</textarea>
+    <label for="listaPacientes">Informe cada paciente no formato <i>HH:MM = Peso</i>:</label>
+    <textarea id="listaPacientes" rows="6" placeholder="Exemplo:&#10;07:30 = 70&#10;08:00 = 70&#10;08:30 = 75" oninput="processarSimulacaoCompleta()"></textarea>
 
     <div class="result" id="resultado">
-        Simulação pronta.
+        Aguardando inserção de dados dos pacientes...
     </div>
 </div>
 
@@ -62,7 +59,7 @@
 
 <div class="card">
     <h3>Lista para Pedido (Distribuidora - TXT)</h3>
-    <textarea id="listaPedido" rows="5" readonly style="background: #e9ecef; font-family: monospace;"></textarea>
+    <textarea id="listaPedido" rows="5" readonly style="background: #e9ecef; font-family: monospace;" placeholder="A lista de horários aparecerá aqui..."></textarea>
     <button class="btn-warning" onclick="baixarTxtPedido()">Baixar Lista em TXT</button>
 </div>
 
@@ -103,7 +100,12 @@
     function processarSimulacaoCompleta() {
         try {
             const textoPacientes = document.getElementById('listaPacientes').value.trim();
-            if (!textoPacientes) return;
+            if (!textoPacientes) {
+                document.getElementById('resultado').innerHTML = "Insira os dados dos pacientes acima.";
+                document.getElementById('listaPedido').value = "";
+                if (meuGrafico) meuGrafico.destroy();
+                return;
+            }
 
             let a0Inicial = 10;
             const subtle = 0.8;
