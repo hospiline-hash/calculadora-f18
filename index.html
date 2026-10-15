@@ -35,43 +35,22 @@
 
 <div class="card">
     <div class="header">
-        <h2>Calculadora de Dose por Peso / Reposição</h2>
+        <h2>Lista de Pacientes do Dia (Horário = Peso)</h2>
     </div>
-
-    <label for="radiofarmaco">Selecione o Radiofármaco:</label>
-    <select id="radiofarmaco" onchange="processarSimulacaoCompleta()">
-        <option value="109.8">FDG (¹⁸F-FDG) - Flúor-18 (Meia-vida: 109,8 min)</option>
-        <option value="67.7">Gálio-68 (⁶⁸Ga) - Gálio-68 (Meia-vida: 67,7 min)</option>
-        <option value="4698">Gálio-67 (⁶⁷Ga) - Gálio-67 (Meia-vida: 78,3 horas)</option>
-    </select>
     
-    <label for="horaInicioLote">Horário Inicial de Referência do Lote:</label>
-    <input type="time" id="horaInicioLote" value="07:30" onchange="processarSimulacaoCompleta()">
+    <label for="radiofarmaco">Radiofármaco Padrão (FDG - 109,8 min):</label>
+    <select id="radiofarmaco" onchange="processarSimulacaoCompleta()" style="display:none;">
+        <option value="109.8" selected>FDG (¹⁸F-FDG)</option>
+    </select>
 
-    <label for="a0">Atividade Inicial / Lote (mCi):</label>
-    <input type="number" id="a0" value="10" step="any" onchange="processarSimulacaoCompleta()">
-
-    <label for="horaInjecao">Horário da Injeção do Paciente (HH:MM):</label>
-    <input type="time" id="horaInjecao" value="08:00">
-
-    <label for="peso">Peso do Paciente (kg):</label>
-    <input type="number" id="peso" value="70" step="any" placeholder="Ex: 70">
-
-    <label for="subtle">Fator de Correção Subtle:</label>
-    <input type="number" id="subtle" value="0.8" step="any">
-
-    <button onclick="adicionarPaciente()">Adicionar Paciente e Recalcular</button>
+    <p style="font-size: 13px; color: #555;">Informe cada paciente no formato <i>HH:MM = Peso</i> (ex: 07:30 = 70):</p>
+    <textarea id="listaPacientes" rows="6" oninput="processarSimulacaoCompleta()">07:30 = 70
+08:00 = 70
+08:30 = 75</textarea>
 
     <div class="result" id="resultado">
-        Adicione os pacientes para simular o fluxo do dia.
+        Simulação pronta.
     </div>
-</div>
-
-<div class="card">
-    <h3>Lista de Pacientes do Dia (Horário = Peso)</h3>
-    <p style="font-size: 13px; color: #555;">Informe cada paciente no formato <i>HH:MM = Peso</i>:</p>
-    <textarea id="listaPacientes" rows="4" oninput="processarSimulacaoCompleta()">07:30 = 70
-08:00 = 70</textarea>
 </div>
 
 <div class="card">
@@ -121,32 +100,14 @@
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
 
-    function adicionarPaciente() {
-        const horaInjecaoStr = document.getElementById('horaInjecao').value;
-        const peso = document.getElementById('peso').value;
-        if (!horaInjecaoStr || !peso) return;
-
-        let txtArea = document.getElementById('listaPacientes');
-        let novaLinha = `${horaInjecaoStr} = ${peso}`;
-        
-        let linhas = txtArea.value.trim().split('\n');
-        linhas.push(novaLinha);
-        txtArea.value = linhas.join('\n');
-
-        processarSimulacaoCompleta();
-    }
-
     function processarSimulacaoCompleta() {
         try {
             const textoPacientes = document.getElementById('listaPacientes').value.trim();
             if (!textoPacientes) return;
 
-            let a0Inicial = parseFloat(document.getElementById('a0').value) || 10;
-            if (a0Inicial > 20) a0Inicial = 20; // Garante teto máximo inicial
-
-            const subtle = parseFloat(document.getElementById('subtle').value) || 0.8;
-            const horaInicioStr = document.getElementById('horaInicioLote').value || "07:30";
-            const minInicioLote = converterHoraParaMinutos(horaInicioStr);
+            let a0Inicial = 10;
+            const subtle = 0.8;
+            const minInicioLote = converterHoraParaMinutos("07:30");
             const meiaVidaMin = obterMeiaVidaMinutos();
             const lambda = 0.693 / meiaVidaMin;
 
@@ -181,11 +142,10 @@
                 }
                 ultimoMinutoAvaliado = pac.minutos;
 
-                // Se não houver atividade suficiente, pede reposição de 10 mCi respeitando o teto de 20 mCi
                 if (estoqueAtual < pac.doseNecessaria) {
                     pedidosReposicao.push(pac.horaStr);
-                    estoqueAtual += 10;
-                    if (estoqueAtual > 20) estoqueAtual = 20; // Teto máximo de 20 mCi
+                    estoqueAtual += 10; 
+                    if (estoqueAtual > 20) estoqueAtual = 20;
                 }
 
                 estoqueAtual -= pac.doseNecessaria;
@@ -233,7 +193,6 @@
                 }
             });
 
-            // Aplica o teto máximo de 20 mCi no gráfico
             if (ativ > 20) ativ = 20;
             dadosCurva.push(ativ > 0 ? ativ.toFixed(2) : 0);
         }
@@ -261,7 +220,7 @@
                 scales: {
                     y: { 
                         beginAtZero: true, 
-                        max: 25, // Limite superior do eixo Y ajustado próximo ao teto de 20
+                        max: 25, 
                         title: { display: true, text: 'Atividade (mCi)' } 
                     },
                     x: { title: { display: true, text: 'Horário do Plantão' } }
