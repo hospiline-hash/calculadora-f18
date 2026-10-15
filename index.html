@@ -43,7 +43,7 @@
     </select>
 
     <label for="listaPacientes">Informe cada paciente no formato <i>HH:MM = Peso</i>:</label>
-    <textarea id="listaPacientes" rows="6" placeholder="Exemplo:&#10;07:00 = 70&#10;07:30 = 75" oninput="processarSimulacaoCompleta()"></textarea>
+    <textarea id="listaPacientes" rows="6" placeholder="Exemplo:&#10;09:00 = 70&#10;09:30 = 100" oninput="processarSimulacaoCompleta()"></textarea>
 
     <div class="result" id="resultado">
         Aguardando inserção de dados dos pacientes...
@@ -131,22 +131,26 @@
             if (pacientes.length === 0) return;
             pacientes.sort((a, b) => a.minutos - b.minutos);
 
-            // O horário inicial e o lote base partem exatamente do primeiro paciente informado
+            // O primeiro lote de 10 mCi chega exatamente no horário do primeiro paciente e conta como o primeiro pedido
             let minInicioLote = pacientes[0].minutos;
             let a0Inicial = 10;
 
             let estoqueAtual = a0Inicial;
             let ultimoMinutoAvaliado = minInicioLote;
-            let pedidosReposicao = [];
+            
+            // O primeiro pedido é obrigatoriamente o lote inicial para começar
+            let pedidosReposicao = [pacientes[0].horaStr];
 
-            pacientes.forEach((pac) => {
+            pacientes.forEach((pac, index) => {
                 let deltaT = pac.minutos - ultimoMinutoAvaliado;
                 if (deltaT > 0) {
                     estoqueAtual = estoqueAtual * Math.exp(-lambda * deltaT);
                 }
                 ultimoMinutoAvaliado = pac.minutos;
 
-                if (estoqueAtual < pac.doseNecessaria) {
+                if (index === 0) {
+                    // O primeiro paciente consome do lote inicial recém-pedido
+                } else if (estoqueAtual < pac.doseNecessaria) {
                     pedidosReposicao.push(pac.horaStr);
                     estoqueAtual += 10; 
                     if (estoqueAtual > 20) estoqueAtual = 20;
@@ -165,7 +169,7 @@
 
             document.getElementById('resultado').innerHTML = `
                 Simulação concluída com sucesso!<br>
-                <strong>Total de pedidos de reposição (10 mCi) necessários:</strong> ${pedidosReposicao.length}
+                <strong>Total de pedidos de reposição (10 mCi) necessários:</strong> ${pedidosReposicao.length} (incluindo a dose inicial)
             `;
 
             gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, a0Inicial, lambda);
@@ -182,14 +186,19 @@
         for (let m = minInicio; m <= fimSimulacao; m += 10) {
             labels.push(minutosParaHoraStr(m));
 
-            let ativ = a0Inicial * Math.exp(-lambda * (m - minInicio));
+            let ativ = 0;
+            // O primeiro lote entra exatamente no horário do primeiro paciente
+            if (m >= minInicio) {
+                ativ += a0Inicial * Math.exp(-lambda * (m - minInicio));
+            }
             
-            pedidosHorarios.forEach(hStr => {
-                let minP = converterHoraParaMinutos(hStr);
+            // Demais pedidos adicionais (a partir do segundo item da lista de pedidos)
+            for (let i = 1; i < pedidosHorarios.length; i++) {
+                let minP = converterHoraParaMinutos(pedidosHorarios[i]);
                 if (m >= minP) {
                     ativ += 10 * Math.exp(-lambda * (m - minP));
                 }
-            });
+            }
 
             pacientes.forEach(pac => {
                 if (m >= pac.minutos) {
