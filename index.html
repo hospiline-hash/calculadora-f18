@@ -43,7 +43,7 @@
     </select>
 
     <label for="listaPacientes">Informe cada paciente no formato <i>HH:MM = Peso</i>:</label>
-    <textarea id="listaPacientes" rows="6" placeholder="Exemplo:&#10;07:30 = 70&#10;08:00 = 70&#10;08:30 = 75" oninput="processarSimulacaoCompleta()"></textarea>
+    <textarea id="listaPacientes" rows="6" placeholder="Exemplo:&#10;07:00 = 70&#10;07:30 = 75" oninput="processarSimulacaoCompleta()"></textarea>
 
     <div class="result" id="resultado">
         Aguardando inserção de dados dos pacientes...
@@ -107,9 +107,7 @@
                 return;
             }
 
-            let a0Inicial = 10;
             const subtle = 0.8;
-            const minInicioLote = converterHoraParaMinutos("07:30");
             const meiaVidaMin = obterMeiaVidaMinutos();
             const lambda = 0.693 / meiaVidaMin;
 
@@ -132,6 +130,10 @@
 
             if (pacientes.length === 0) return;
             pacientes.sort((a, b) => a.minutos - b.minutos);
+
+            // O horário inicial e o lote base partem exatamente do primeiro paciente informado
+            let minInicioLote = pacientes[0].minutos;
+            let a0Inicial = 10;
 
             let estoqueAtual = a0Inicial;
             let ultimoMinutoAvaliado = minInicioLote;
