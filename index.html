@@ -56,7 +56,7 @@
         .stats { background: #f0fdf4; border-top: 4px solid #10b981; padding: 20px; border-radius: 8px; margin-top: 20px; }
         .loading { font-size: 12px; color: #64748b; font-style: italic; }
         .chart-container { position: relative; margin-top: 20px; width: 100%; height: 350px; }
-        .historico-box { background: #fffbeb; padding: 12px; border-radius: 6px; border: 1px solid #fde68a; margin-bottom: 15px; }
+        .historico-box { background: #fffbeb; padding: 15px; border-radius: 6px; border: 1px solid #fde68a; margin-bottom: 15px; }
 
         @media print {
             body { background: white; padding: 0; color: #000; }
@@ -108,8 +108,16 @@
     </div>
 
     <div class="historico-box">
-        <label for="filtroData">Data do Atendimento / Inserção (Histórico) - (7 Dias):</label>
-        <input type="date" id="filtroData" onchange="carregarDadosPorData()">
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <label for="dataInsercao">Data de Inserção / Atendimento:</label>
+                <input type="date" id="dataInsercao" onchange="aoMudarDataInsercao()">
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <label for="filtroData">Consultar Histórico (Visualização):</label>
+                <input type="date" id="filtroData" onchange="carregarDadosPorData()">
+            </div>
+        </div>
     </div>
     
     <select id="radiofarmaco" onchange="processarSimulacaoCompleta()" style="display:none;">
@@ -162,6 +170,7 @@
 
     window.onload = function() {
         const hojeStr = obterDataAtualStr();
+        document.getElementById('dataInsercao').value = hojeStr;
         document.getElementById('filtroData').value = hojeStr;
         carregarDadosNuvemInicial();
         setInterval(carregarDadosNuvemBackground, 15000);
@@ -185,6 +194,12 @@
         let h = Math.floor(minutosTotais / 60);
         let m = minutosTotais % 60;
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    function aoMudarDataInsercao() {
+        // Ao mudar a data de inserção, sincroniza também a consulta para exibir o que tem nela
+        document.getElementById('filtroData').value = document.getElementById('dataInsercao').value;
+        carregarDadosPorData();
     }
 
     function aoDigitarPacientes() {
@@ -268,9 +283,10 @@
 
             let totalQtdPedidos = pedidosReposicao.length;
             let volumeTotalMci = totalQtdPedidos * 10;
+            let dataAtiva = document.getElementById('dataInsercao').value;
 
             let textoTxt = `=== LISTA DE PEDIDOS DE REPOSIÇÃO (F-18) ===\n`;
-            textoTxt += `Data: ${document.getElementById('filtroData').value}\n`;
+            textoTxt += `Data: ${dataAtiva}\n`;
             textoTxt += `-----------------------------------------\n`;
             pedidosReposicao.forEach((h, idx) => {
                 textoTxt += `Pedido ${idx + 1} - Horário: ${h} (10 mCi)\n`;
@@ -326,12 +342,11 @@
             if (ativ > 20) ativ = 20;
             dadosCurva.push(ativ > 0 ? ativ.toFixed(2) : 0);
 
-            // Ponto do paciente com tamanho equilibrado e discreto (tamanho 4.5)
             if (minutosPacientes.includes(m)) {
-                coresPontos.push('#ef4444'); // Vermelho
+                coresPontos.push('#ef4444');
                 tamanhosPontos.push(4.5);
             } else {
-                coresPontos.push('#3b82f6'); // Azul padrão
+                coresPontos.push('#3b82f6');
                 tamanhosPontos.push(2.5);
             }
         }
@@ -377,7 +392,7 @@
         let blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
         let link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `pedido_radiofarmaco_${document.getElementById('filtroData').value}.txt`;
+        link.download = `pedido_radiofarmaco_${document.getElementById('dataInsercao').value}.txt`;
         link.click();
     }
 
@@ -429,12 +444,12 @@
 
     async function salvarDadosNuvem() {
         try {
-            const dataSelecionada = document.getElementById('filtroData').value || obterDataAtualStr();
+            const dataInsercao = document.getElementById('dataInsercao').value || obterDataAtualStr();
             const textoPacientes = document.getElementById('listaPacientes').value;
 
             if (!bancoDadosRemoto.historicoDias) bancoDadosRemoto.historicoDias = {};
 
-            bancoDadosRemoto.historicoDias[dataSelecionada] = {
+            bancoDadosRemoto.historicoDias[dataInsercao] = {
                 textoPacientes: textoPacientes,
                 atualizadoEm: new Date().toISOString()
             };
