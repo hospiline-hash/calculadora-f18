@@ -197,7 +197,6 @@
     }
 
     function aoMudarDataInsercao() {
-        // Ao mudar a data de inserção, sincroniza também a consulta para exibir o que tem nela
         document.getElementById('filtroData').value = document.getElementById('dataInsercao').value;
         carregarDadosPorData();
     }
@@ -283,20 +282,10 @@
 
             let totalQtdPedidos = pedidosReposicao.length;
             let volumeTotalMci = totalQtdPedidos * 10;
-            let dataAtiva = document.getElementById('dataInsercao').value;
 
-            let textoTxt = `=== LISTA DE PEDIDOS DE REPOSIÇÃO (F-18) ===\n`;
-            textoTxt += `Data: ${dataAtiva}\n`;
-            textoTxt += `-----------------------------------------\n`;
-            pedidosReposicao.forEach((h, idx) => {
-                textoTxt += `Pedido ${idx + 1} - Horário: ${h} (10 mCi)\n`;
-            });
-            textoTxt += `-----------------------------------------\n`;
-            textoTxt += `RESUMO PARA DISTRIBUIDORA:\n`;
-            textoTxt += `Total de Pedidos: ${totalQtdPedidos}\n`;
-            textoTxt += `Volume Total a Solicitar: ${volumeTotalMci} mCi\n`;
-
-            document.getElementById('listaPedido').value = textoTxt.trim();
+            // Formatação do TXT contendo apenas os horários um abaixo do outro
+            let textoTxt = pedidosReposicao.join('\n');
+            document.getElementById('listaPedido').value = textoTxt;
 
             let totalPacientesAtual = pacientes.length;
             let economiaDia = totalPacientesAtual - totalQtdPedidos;
