@@ -88,6 +88,7 @@
     const BIN_ID = "6abe5e5effd5d1605342b486";
     const API_KEY = "$2a$10$NipvyBy7s7OM50qZMajLN.04okYLf7FrONhthX.4awurbixP9ye3S";
     let meuGrafico = null;
+    let timerSalvarNuvem = null;
 
     window.onload = function() {
         carregarDadosNuvem();
@@ -124,18 +125,22 @@
             const lambda = 0.693 / meiaVidaMin;
 
             let pacientes = [];
+            let totalDoseNecessaria = 0;
+
             textoPacientes.split('\n').forEach(linha => {
                 if (linha.includes('=')) {
                     let partes = linha.split('=');
                     let horaStr = partes[0].trim();
                     let pesoVal = parseFloat(partes[1].trim());
                     if (!isNaN(pesoVal)) {
+                        let dose = pesoVal * 0.1 * subtle;
                         pacientes.push({
                             minutos: converterHoraParaMinutos(horaStr),
                             horaStr: horaStr,
                             peso: pesoVal,
-                            doseNecessaria: pesoVal * 0.1 * subtle
+                            doseNecessaria: dose
                         });
+                        totalDoseNecessaria += dose;
                     }
                 }
             });
@@ -169,6 +174,7 @@
                 if (estoqueAtual < 0) estoqueAtual = 0;
             });
 
+            // Geração da lista para TXT
             let textoTxt = `Total de pedidos de reposição (10 mCi): ${pedidosReposicao.length}\n`;
             textoTxt += `Horários das solicitações:\n`;
             pedidosReposicao.forEach(h => {
@@ -181,7 +187,24 @@
                 <strong>Total de pedidos de reposição (10 mCi) necessários:</strong> ${pedidosReposicao.length} (incluindo a dose inicial)
             `;
 
+            // Cálculo da estimativa de economia em mCi
+            let totalPedidoMci = pedidosReposicao.length * 10;
+            let economiaMci = totalPedidoMci - totalDoseNecessaria;
+            if (economiaMci < 0) economiaMci = 0;
+
+            // Atualização dos elementos na tela
+            document.getElementById('stat-total').innerText = pacientes.length;
+            document.getElementById('stat-economia').innerText = economiaMci.toFixed(2);
+
+            // Geração do gráfico
             gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, a0Inicial, lambda);
+
+            // Sincronização com a nuvem (com debounce de 1 segundo para evitar chamadas excessivas durante a digitação)
+            clearTimeout(timerSalvarNuvem);
+            timerSalvarNuvem = setTimeout(() => {
+                salvarDadosNuvem(pacientes.length, economiaMci);
+            }, 1000);
+
         } catch (e) {
             console.error(e);
         }
@@ -260,31 +283,4 @@
 
     async function carregarDadosNuvem() {
         try {
-            const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': API_KEY }
-            });
-            if (!resposta.ok) throw new Error('Erro');
-            const resultado = await resposta.json();
-            const dados = resultado.record || resultado;
-            document.getElementById('stat-total').innerText = dados.totalPacientes || 0;
-            document.getElementById('stat-economia').innerText = (dados.totalEconomia || 0).toFixed(2);
-            document.getElementById('sync-status').innerText = "(Sincronizado)";
-        } catch (e) {
-            document.getElementById('sync-status').innerText = "(Erro de conexão)";
-        }
-    }
-
-    async function zerarBancoNuvem() {
-        if (confirm("Deseja realmente zerar o relatório consolidado na nuvem?")) {
-            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-                body: JSON.stringify({ totalPacientes: 0, totalEconomia: 0 })
-            });
-            carregarDadosNuvem();
-        }
-    }
-</script>
-
-</body>
-</html>
+            const resposta = await fetch(`
