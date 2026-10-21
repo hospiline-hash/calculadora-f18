@@ -135,10 +135,11 @@
 </div>
 
 <div class="card">
-    <h3>Curva do Decaimento e Reposições Automáticas/Manuais (Teto Máx: 20 mCi)</h3>
+    <h3>Curva do Decaimento e Reposições (Teto Máx: 20 mCi)</h3>
     <p style="font-size: 13px; color: #475569; margin-top: -5px; line-height: 1.4;">
-        🔴 <b>Ao clicar na bola vermelha (paciente):</b> Altere o horário ou o peso do paciente.<br>
-        🔵 <b>Ao clicar na linha azul ou espaço vazio:</b> Insira uma Reposição Extra de 10 mCi.
+        🔴 <b>Bolas Vermelhas:</b> Pacientes (Clique para editar ou remover).<br>
+        🔵 <b>Bolas Azuis:</b> Doses / Reposições (Clique para mover, alterar horário ou remover).<br>
+        ✨ <b>Espaço vazio / Linha:</b> Clique para adicionar nova Reposição Extra de 10 mCi.
     </p>
     <div class="chart-container">
         <canvas id="graficoDecaimento"></canvas>
@@ -235,7 +236,7 @@
         try {
             const textoPacientes = document.getElementById('listaPacientes').value.trim();
             const dataAtual = document.getElementById('filtroData').value;
-            const reposicoesManuaisArr = reposicoesExtrasPorData[dataAtual] || [];
+            let reposicoesManuaisArr = reposicoesExtrasPorData[dataAtual] || [];
 
             if (!textoPacientes) {
                 document.getElementById('resultado').innerHTML = "Insira os dados dos pacientes acima.";
@@ -270,28 +271,13 @@
             if (pacientes.length === 0) return;
             pacientes.sort((a, b) => a.minutos - b.minutos);
 
-            let reposicoesManuais = [];
-            reposicoesManuaisArr.forEach(hTrim => {
-                if (hTrim.includes(':')) {
-                    reposicoesManuais.push({
-                        minutos: converterHoraParaMinutos(hTrim),
-                        horaStr: minutosParaHoraStr(converterHoraParaMinutos(hTrim))
-                    });
-                }
-            });
-
             let minInicioLote = pacientes[0].minutos;
             let a0Inicial = 10;
             let estoqueAtual = a0Inicial;
             let ultimoMinutoAvaliado = minInicioLote;
             let pedidosReposicao = [pacientes[0].horaStr];
 
-            reposicoesManuais.forEach(rep => {
-                if (!pedidosReposicao.includes(rep.horaStr)) {
-                    pedidosReposicao.push(rep.horaStr);
-                }
-            });
-            pedidosReposicao.sort((a, b) => converterHoraParaMinutos(a) - converterHoraParaMinutos(b));
+            let reposicoesSet = new Set([...pedidosReposicao, ...reposicoesManuaisArr]);
 
             pacientes.forEach((pac, index) => {
                 let deltaT = pac.minutos - ultimoMinutoAvaliado;
@@ -300,19 +286,15 @@
                 }
                 ultimoMinutoAvaliado = pac.minutos;
 
-                reposicoesManuais.forEach(rep => {
-                    if (rep.minutos === pac.minutos) {
-                        estoqueAtual += 10;
-                        if (estoqueAtual > 20) estoqueAtual = 20;
-                    }
-                });
+                if (reposicoesManuaisArr.includes(pac.horaStr)) {
+                    estoqueAtual += 10;
+                    if (estoqueAtual > 20) estoqueAtual = 20;
+                }
 
                 if (index === 0) {
                     // Primeiro paciente consome do lote inicial
                 } else if (estoqueAtual < pac.doseNecessaria) {
-                    if (!pedidosReposicao.includes(pac.horaStr)) {
-                        pedidosReposicao.push(pac.horaStr);
-                    }
+                    reposicoesSet.add(pac.horaStr);
                     estoqueAtual += 10; 
                     if (estoqueAtual > 20) estoqueAtual = 20;
                 }
@@ -320,10 +302,12 @@
                 if (estoqueAtual < 0) estoqueAtual = 0;
             });
 
+            reposicoesManuaisArr.forEach(h => reposicoesSet.add(h));
+
+            pedidosReposicao = Array.from(reposicoesSet);
             pedidosReposicao.sort((a, b) => converterHoraParaMinutos(a) - converterHoraParaMinutos(b));
 
             let totalQtdPedidos = pedidosReposicao.length;
-
             let textoTxt = pedidosReposicao.join('\n');
             document.getElementById('listaPedido').value = textoTxt;
 
@@ -336,13 +320,13 @@
                 <strong>Total de pedidos de reposição:</strong> ${totalQtdPedidos} | <strong>Economia do dia:</strong> ${economiaDia}
             `;
 
-            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, a0Inicial, lambda);
+            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, reposicoesManuaisArr, a0Inicial, lambda);
         } catch (e) {
             console.error(e);
         }
     }
 
-    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, a0Inicial, lambda) {
+    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, reposicoesManuaisArr, a0Inicial, lambda) {
         let fimSimulacao = minInicio + 420; 
         let labels = [];
         let dadosCurva = [];
@@ -374,6 +358,9 @@
 
             if (minutosPacientes.includes(m)) {
                 coresPontos.push('#ef4444');
+                tamanhosPontos.push(6);
+            } else if (pedidosHorarios.includes(minutosParaHoraStr(m))) {
+                coresPontos.push('#3b82f6');
                 tamanhosPontos.push(6);
             } else {
                 coresPontos.push('transparent');
@@ -411,38 +398,58 @@
                     
                     if (dataX !== undefined && labels[dataX]) {
                         let horarioClicado = labels[dataX];
-                        let pacEncontrado = pacientes.find(p => p.horaStr === horarioClicado);
+                        let dataAtual = document.getElementById('filtroData').value;
+                        if (!reposicoesExtrasPorData[dataAtual]) reposicoesExtrasPorData[dataAtual] = [];
 
-                        if (!pacEncontrado && elements && elements.length > 0) {
+                        let pacEncontrado = pacientes.find(p => p.horaStr === horarioClicado);
+                        let ehDoseExistente = pedidosHorarios.includes(horarioClicado) && horarioClicado !== pacientes[0].horaStr;
+
+                        if (!pacEncontrado && !ehDoseExistente && elements && elements.length > 0) {
                             const index = elements[0].index;
-                            let horarioPonto = labels[index];
-                            pacEncontrado = pacientes.find(p => p.horaStr === horarioPonto);
+                            horarioClicado = labels[index];
+                            pacEncontrado = pacientes.find(p => p.horaStr === horarioClicado);
+                            ehDoseExistente = pedidosHorarios.includes(horarioClicado) && horarioClicado !== pacientes[0].horaStr;
                         }
 
                         if (pacEncontrado) {
-                            let novoH = prompt(`Paciente das ${pacEncontrado.horaStr} (${pacEncontrado.peso} kg).\n\nDigite o NOVO HORÁRIO (HH:MM):`, pacEncontrado.horaStr);
-                            
-                            if (novoH !== null) {
-                                novoH = novoH.trim();
-                                if (novoH.includes(':')) {
+                            let escolha = prompt(`🔴 Paciente às ${pacEncontrado.horaStr} (${pacEncontrado.peso} kg).\n\nDigite:\n1 - Alterar Horário / Peso\n2 - Remover Paciente`, "1");
+                            if (escolha === "1") {
+                                let novoH = prompt("Digite o NOVO HORÁRIO (HH:MM):", pacEncontrado.horaStr);
+                                if (novoH !== null && novoH.includes(':')) {
                                     pacEncontrado.minutos = converterHoraParaMinutos(novoH);
                                     pacEncontrado.horaStr = minutosParaHoraStr(pacEncontrado.minutos);
                                 }
-
-                                let novoP = prompt(`Horário atualizado para ${pacEncontrado.horaStr}.\n\nDigite o NOVO PESO (kg):`, pacEncontrado.peso);
-                                
+                                let novoP = prompt("Digite o NOVO PESO (kg):", pacEncontrado.peso);
                                 if (novoP !== null && !isNaN(parseFloat(novoP))) {
                                     pacEncontrado.peso = parseFloat(novoP);
                                 }
-
                                 pacientes.sort((a, b) => a.minutos - b.minutos);
                                 document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
                                 aoDigitarPacientes();
+                            } else if (escolha === "2") {
+                                if (confirm(`Remover paciente das ${pacEncontrado.horaStr}?`)) {
+                                    pacientes = pacientes.filter(p => p.horaStr !== pacEncontrado.horaStr);
+                                    document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
+                                    aoDigitarPacientes();
+                                }
+                            }
+                        } else if (ehDoseExistente) {
+                            let escolhaDose = prompt(`🔵 Dose de Reposição às ${horarioClicado}.\n\nDigite:\n1 - Alterar Horário da Dose\n2 - Remover esta Dose`, "1");
+                            if (escolhaDose === "1") {
+                                let novoHDose = prompt("Digite o NOVO HORÁRIO (HH:MM):", horarioClicado);
+                                if (novoHDose !== null && novoHDose.includes(':')) {
+                                    reposicoesExtrasPorData[dataAtual] = reposicoesExtrasPorData[dataAtual].filter(h => h !== horarioClicado);
+                                    reposicoesExtrasPorData[dataAtual].push(novoHDose.trim());
+                                    aoDigitarPacientes();
+                                }
+                            } else if (escolhaDose === "2") {
+                                if (confirm(`Remover dose das ${horarioClicado}?`)) {
+                                    reposicoesExtrasPorData[dataAtual] = reposicoesExtrasPorData[dataAtual].filter(h => h !== horarioClicado);
+                                    aoDigitarPacientes();
+                                }
                             }
                         } else {
                             if (confirm(`Deseja adicionar uma Reposição Extra de 10 mCi às ${horarioClicado}?`)) {
-                                const dataAtual = document.getElementById('filtroData').value;
-                                if (!reposicoesExtrasPorData[dataAtual]) reposicoesExtrasPorData[dataAtual] = [];
                                 reposicoesExtrasPorData[dataAtual].push(horarioClicado);
                                 aoDigitarPacientes();
                             }
@@ -455,7 +462,7 @@
                         max: 25, 
                         title: { display: true, text: 'Atividade (mCi)' } 
                     },
-                    x: { title: { display: true, text: 'Horário do Plantão (Clique nos pontos ou na linha para interagir)' } }
+                    x: { title: { display: true, text: 'Horário do Plantão (🔴 Pacientes | 🔵 Doses | Clique em qualquer ponto para editar)' } }
                 }
             }
         });
@@ -639,13 +646,17 @@
     }
 
     async function zerarBancoNuvem() {
-        if (confirm("Deseja realmente limpar todo o histórico de dados armazenados na nuvem?")) {
+        let confirmacao = prompt("ATENÇÃO: Esta ação apagará todo o histórico da nuvem!\n\nPara confirmar, digite exatamente a palavra: ZERAR");
+        
+        if (confirmacao !== null && confirmacao.trim().toUpperCase() === "ZERAR") {
             bancoDadosRemoto = { historicoDias: {} };
             reposicoesExtrasPorData = {};
             await salvarDadosNuvem();
             document.getElementById('listaPacientes').value = "";
             processarSimulacaoCompleta();
             alert("Histórico limpo com sucesso!");
+        } else {
+            alert("Ação cancelada. A palavra de confirmação não foi digitada corretamente.");
         }
     }
 </script>
