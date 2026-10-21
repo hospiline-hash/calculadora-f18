@@ -125,7 +125,9 @@
     </select>
 
     <label for="listaPacientes">Informe cada paciente no formato <i>HH:MM = Peso</i> | Cada linha representa um atendimento:</label>
-    <textarea id="listaPacientes" rows="6" placeholder="Exemplo:&#10;09:00 = 70&#10;09:30 = 100" oninput="aoDigitarPacientes()"></textarea>
+    <textarea id="listaPacientes" rows="5" placeholder="Exemplo:&#10;07:00 = 82&#10;08:00 = 90" oninput="aoDigitarPacientes()"></textarea>
+
+    <input type="hidden" id="listaReposicoesExtras" value="">
 
     <div class="result" id="resultado">
         Aguardando inserção de dados dos pacientes...
@@ -133,8 +135,11 @@
 </div>
 
 <div class="card">
-    <h3>Curva do Decaimento e Reposições Automáticas (Teto Máx: 20 mCi)</h3>
-    <p style="font-size: 12px; color: #64748b; margin-top: -5px;">🔴 Os pontos destacados em vermelho indicam os horários exatos dos pacientes.</p>
+    <h3>Curva do Decaimento e Reposições Automáticas/Manuais (Teto Máx: 20 mCi)</h3>
+    <p style="font-size: 13px; color: #475569; margin-top: -5px; line-height: 1.4;">
+        🔴 <b>Ao clicar na bola vermelha (paciente):</b> Altere o horário ou o peso do paciente.<br>
+        🔵 <b>Ao clicar na linha azul ou espaço vazio:</b> Insira uma Reposição Extra de 10 mCi.
+    </p>
     <div class="chart-container">
         <canvas id="graficoDecaimento"></canvas>
     </div>
@@ -168,6 +173,8 @@
     let temporizadorSalvamento = null;
     let carregandoRemoto = false;
 
+    let reposicoesExtrasPorData = {};
+
     window.onload = function() {
         const hojeStr = obterDataAtualStr();
         document.getElementById('dataInsercao').value = hojeStr;
@@ -186,7 +193,7 @@
     }
 
     function converterHoraParaMinutos(strHora) {
-        const partes = strHora.split(':');
+        const partes = strHora.trim().split(':');
         return parseInt(partes[0]) * 60 + parseInt(partes[1]);
     }
 
@@ -215,8 +222,10 @@
         const dataSelecionada = document.getElementById('filtroData').value;
         if (bancoDadosRemoto.historicoDias && bancoDadosRemoto.historicoDias[dataSelecionada]) {
             document.getElementById('listaPacientes').value = bancoDadosRemoto.historicoDias[dataSelecionada].textoPacientes || "";
+            reposicoesExtrasPorData[dataSelecionada] = bancoDadosRemoto.historicoDias[dataSelecionada].reposicoesExtras || [];
         } else {
             document.getElementById('listaPacientes').value = "";
+            reposicoesExtrasPorData[dataSelecionada] = [];
         }
         processarSimulacaoCompleta();
         carregandoRemoto = false;
@@ -225,6 +234,9 @@
     function processarSimulacaoCompleta() {
         try {
             const textoPacientes = document.getElementById('listaPacientes').value.trim();
+            const dataAtual = document.getElementById('filtroData').value;
+            const reposicoesManuaisArr = reposicoesExtrasPorData[dataAtual] || [];
+
             if (!textoPacientes) {
                 document.getElementById('resultado').innerHTML = "Insira os dados dos pacientes acima.";
                 document.getElementById('listaPedido').value = "";
@@ -240,11 +252,13 @@
             textoPacientes.split('\n').forEach(linha => {
                 if (linha.includes('=')) {
                     let partes = linha.split('=');
-                    let horaStr = partes[0].trim();
+                    let horaBruta = partes[0].trim();
+                    let minTotais = converterHoraParaMinutos(horaBruta);
+                    let horaStr = minutosParaHoraStr(minTotais);
                     let pesoVal = parseFloat(partes[1].trim());
                     if (!isNaN(pesoVal)) {
                         pacientes.push({
-                            minutos: converterHoraParaMinutos(horaStr),
+                            minutos: minTotais,
                             horaStr: horaStr,
                             peso: pesoVal,
                             doseNecessaria: pesoVal * 0.1 * subtle
@@ -256,11 +270,28 @@
             if (pacientes.length === 0) return;
             pacientes.sort((a, b) => a.minutos - b.minutos);
 
+            let reposicoesManuais = [];
+            reposicoesManuaisArr.forEach(hTrim => {
+                if (hTrim.includes(':')) {
+                    reposicoesManuais.push({
+                        minutos: converterHoraParaMinutos(hTrim),
+                        horaStr: minutosParaHoraStr(converterHoraParaMinutos(hTrim))
+                    });
+                }
+            });
+
             let minInicioLote = pacientes[0].minutos;
             let a0Inicial = 10;
             let estoqueAtual = a0Inicial;
             let ultimoMinutoAvaliado = minInicioLote;
             let pedidosReposicao = [pacientes[0].horaStr];
+
+            reposicoesManuais.forEach(rep => {
+                if (!pedidosReposicao.includes(rep.horaStr)) {
+                    pedidosReposicao.push(rep.horaStr);
+                }
+            });
+            pedidosReposicao.sort((a, b) => converterHoraParaMinutos(a) - converterHoraParaMinutos(b));
 
             pacientes.forEach((pac, index) => {
                 let deltaT = pac.minutos - ultimoMinutoAvaliado;
@@ -269,10 +300,19 @@
                 }
                 ultimoMinutoAvaliado = pac.minutos;
 
+                reposicoesManuais.forEach(rep => {
+                    if (rep.minutos === pac.minutos) {
+                        estoqueAtual += 10;
+                        if (estoqueAtual > 20) estoqueAtual = 20;
+                    }
+                });
+
                 if (index === 0) {
-                    // O primeiro paciente consome do lote inicial
+                    // Primeiro paciente consome do lote inicial
                 } else if (estoqueAtual < pac.doseNecessaria) {
-                    pedidosReposicao.push(pac.horaStr);
+                    if (!pedidosReposicao.includes(pac.horaStr)) {
+                        pedidosReposicao.push(pac.horaStr);
+                    }
                     estoqueAtual += 10; 
                     if (estoqueAtual > 20) estoqueAtual = 20;
                 }
@@ -280,10 +320,10 @@
                 if (estoqueAtual < 0) estoqueAtual = 0;
             });
 
-            let totalQtdPedidos = pedidosReposicao.length;
-            let volumeTotalMci = totalQtdPedidos * 10;
+            pedidosReposicao.sort((a, b) => converterHoraParaMinutos(a) - converterHoraParaMinutos(b));
 
-            // Formatação do TXT contendo apenas os horários um abaixo do outro
+            let totalQtdPedidos = pedidosReposicao.length;
+
             let textoTxt = pedidosReposicao.join('\n');
             document.getElementById('listaPedido').value = textoTxt;
 
@@ -293,7 +333,7 @@
 
             document.getElementById('resultado').innerHTML = `
                 Simulação concluída com sucesso!<br>
-                <strong>Total de pedidos de reposição:</strong> ${totalQtdPedidos} (${volumeTotalMci} mCi) | <strong>Economia do dia:</strong> ${economiaDia}
+                <strong>Total de pedidos de reposição:</strong> ${totalQtdPedidos} | <strong>Economia do dia:</strong> ${economiaDia}
             `;
 
             gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, a0Inicial, lambda);
@@ -317,12 +357,13 @@
             if (m >= minInicio) {
                 ativ += a0Inicial * Math.exp(-lambda * (m - minInicio));
             }
-            for (let i = 1; i < pedidosHorarios.length; i++) {
-                let minP = converterHoraParaMinutos(pedidosHorarios[i]);
-                if (m >= minP) {
+            pedidosHorarios.forEach(horarioPedido => {
+                let minP = converterHoraParaMinutos(horarioPedido);
+                if (minP !== minInicio && m >= minP) {
                     ativ += 10 * Math.exp(-lambda * (m - minP));
                 }
-            }
+            });
+
             pacientes.forEach(pac => {
                 if (m >= pac.minutos) {
                     ativ -= pac.doseNecessaria * Math.exp(-lambda * (m - pac.minutos));
@@ -333,10 +374,10 @@
 
             if (minutosPacientes.includes(m)) {
                 coresPontos.push('#ef4444');
-                tamanhosPontos.push(4.5);
+                tamanhosPontos.push(6);
             } else {
-                coresPontos.push('#3b82f6');
-                tamanhosPontos.push(2.5);
+                coresPontos.push('transparent');
+                tamanhosPontos.push(0);
             }
         }
 
@@ -355,7 +396,7 @@
                     pointBackgroundColor: coresPontos,
                     pointBorderColor: coresPontos,
                     pointRadius: tamanhosPontos,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 8,
                     borderWidth: 2,
                     fill: true,
                     tension: 0.2
@@ -364,13 +405,57 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: (e, elements) => {
+                    const canvasPosition = Chart.helpers.getRelativePosition(e, meuGrafico);
+                    const dataX = meuGrafico.scales.x.getValueForPixel(canvasPosition.x);
+                    
+                    if (dataX !== undefined && labels[dataX]) {
+                        let horarioClicado = labels[dataX];
+                        let pacEncontrado = pacientes.find(p => p.horaStr === horarioClicado);
+
+                        if (!pacEncontrado && elements && elements.length > 0) {
+                            const index = elements[0].index;
+                            let horarioPonto = labels[index];
+                            pacEncontrado = pacientes.find(p => p.horaStr === horarioPonto);
+                        }
+
+                        if (pacEncontrado) {
+                            let novoH = prompt(`Paciente das ${pacEncontrado.horaStr} (${pacEncontrado.peso} kg).\n\nDigite o NOVO HORÁRIO (HH:MM):`, pacEncontrado.horaStr);
+                            
+                            if (novoH !== null) {
+                                novoH = novoH.trim();
+                                if (novoH.includes(':')) {
+                                    pacEncontrado.minutos = converterHoraParaMinutos(novoH);
+                                    pacEncontrado.horaStr = minutosParaHoraStr(pacEncontrado.minutos);
+                                }
+
+                                let novoP = prompt(`Horário atualizado para ${pacEncontrado.horaStr}.\n\nDigite o NOVO PESO (kg):`, pacEncontrado.peso);
+                                
+                                if (novoP !== null && !isNaN(parseFloat(novoP))) {
+                                    pacEncontrado.peso = parseFloat(novoP);
+                                }
+
+                                pacientes.sort((a, b) => a.minutos - b.minutos);
+                                document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
+                                aoDigitarPacientes();
+                            }
+                        } else {
+                            if (confirm(`Deseja adicionar uma Reposição Extra de 10 mCi às ${horarioClicado}?`)) {
+                                const dataAtual = document.getElementById('filtroData').value;
+                                if (!reposicoesExtrasPorData[dataAtual]) reposicoesExtrasPorData[dataAtual] = [];
+                                reposicoesExtrasPorData[dataAtual].push(horarioClicado);
+                                aoDigitarPacientes();
+                            }
+                        }
+                    }
+                },
                 scales: {
                     y: { 
                         beginAtZero: true, 
                         max: 25, 
                         title: { display: true, text: 'Atividade (mCi)' } 
                     },
-                    x: { title: { display: true, text: 'Horário do Plantão' } }
+                    x: { title: { display: true, text: 'Horário do Plantão (Clique nos pontos ou na linha para interagir)' } }
                 }
             }
         });
@@ -435,11 +520,14 @@
         try {
             const dataInsercao = document.getElementById('dataInsercao').value || obterDataAtualStr();
             const textoPacientes = document.getElementById('listaPacientes').value;
+            const dataAtual = document.getElementById('filtroData').value;
+            const reposicoesExtrasAtuais = reposicoesExtrasPorData[dataAtual] || [];
 
             if (!bancoDadosRemoto.historicoDias) bancoDadosRemoto.historicoDias = {};
 
             bancoDadosRemoto.historicoDias[dataInsercao] = {
                 textoPacientes: textoPacientes,
+                reposicoesExtras: reposicoesExtrasAtuais,
                 atualizadoEm: new Date().toISOString()
             };
 
@@ -500,10 +588,20 @@
                     let ultMin = pacientesTemp[0].min;
                     let pList = [pacientesTemp[0].hStr];
 
+                    let repsExtrasDia = diaObj.reposicoesExtras || [];
+                    let repsMin = repsExtrasDia.map(h => converterHoraParaMinutos(h));
+
                     pacientesTemp.forEach((p, idx) => {
                         let dt = p.min - ultMin;
                         if (dt > 0) est = est * Math.exp(- (0.693 / 109.8) * dt);
                         ultMin = p.min;
+
+                        repsMin.forEach(rm => {
+                            if (rm === p.min) {
+                                est += 10;
+                                if (est > 20) est = 20;
+                            }
+                        });
 
                         if (idx > 0 && est < p.dose) {
                             pList.push(p.hStr);
@@ -543,6 +641,7 @@
     async function zerarBancoNuvem() {
         if (confirm("Deseja realmente limpar todo o histórico de dados armazenados na nuvem?")) {
             bancoDadosRemoto = { historicoDias: {} };
+            reposicoesExtrasPorData = {};
             await salvarDadosNuvem();
             document.getElementById('listaPacientes').value = "";
             processarSimulacaoCompleta();
