@@ -14,7 +14,28 @@
             --text-color: #1e293b;
         }
 
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: var(--bg-color); color: var(--text-color); }
+        /* Bloqueio de seleção de texto para dificultar cópias */
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            -webkit-user-select: none; 
+            -moz-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none; 
+        }
+
+        /* Permitir selecionar texto apenas dentro de inputs, textareas para digitação normal */
+        input, select, textarea {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+
         .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; border-top: 4px solid var(--primary-color); }
         
         .header { text-align: center; margin-bottom: 20px; }
@@ -182,6 +203,28 @@
 </div>
 
 <script>
+    // --- SCRIPTS DE SEGURANÇA E BLOQUEIO ---
+    
+    // 1. Bloquear menu de contexto (botão direito do mouse)
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+    });
+
+    // 2. Bloquear atalhos de teclado comuns de Inspeção / Desenvolvedor (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, etc.)
+    document.addEventListener('keydown', function(e) {
+        if (
+            e.key === 'F12' || 
+            (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+            (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's'))
+        ) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    });
+
+    // --- FIM DOS SCRIPTS DE SEGURANÇA ---
+
     const BIN_ID = "6abe5e5effd5d1605342b486";
     const API_KEY = "$2a$10$NipvyBy7s7OM50qZMajLN.04okYLf7FrONhthX.4awurbixP9ye3S";
     let meuGrafico = null;
@@ -353,20 +396,19 @@
         let fimSimulacao = minInicio + 420; 
         
         let minutosUnicos = new Set();
-        for (let m = minInicio; m <= fimSimulacao; m += 10) {
+        for (let m = minInicio; m <= fimSimulacao; m += 5) {
             minutosUnicos.add(m);
         }
         pacientes.forEach(p => minutosUnicos.add(p.minutos));
         pedidosHorarios.forEach(h => minutosUnicos.add(converterHoraParaMinutos(h)));
 
         let minutosArray = Array.from(minutosUnicos).sort((a, b) => a - b);
-        let labels = minutosArray.map(m => minutosParaHoraStr(m));
 
         let dadosCurva = [];
+        let dadosAtividadePre = [];
         let dadosDosesAutoAcima = [];
         let dadosDosesExtrasAcima = [];
-        let coresPontosPacientes = [];
-        let tamanhosPontosPacientes = [];
+        let dadosPacientesPuntos = [];
 
         let minutosPacientes = pacientes.map(p => p.minutos);
         let minutosAuto = reposicoesAutoArr.map(h => converterHoraParaMinutos(h));
@@ -385,32 +427,43 @@
             });
 
             pacientes.forEach(pac => {
-                if (m >= pac.minutos) {
+                if (m > pac.minutos) {
                     ativ -= pac.doseNecessaria * Math.exp(-lambda * (m - pac.minutos));
                 }
             });
+
             if (ativ > 20) ativ = 20;
+            let ativPrePaciente = ativ > 0 ? parseFloat(ativ.toFixed(2)) : 0;
+
+            pacientes.forEach(pac => {
+                if (m === pac.minutos) {
+                    ativ -= pac.doseNecessaria;
+                }
+            });
+
+            if (ativ < 0) ativ = 0;
             let valorAtiv = ativ > 0 ? parseFloat(ativ.toFixed(2)) : 0;
-            dadosCurva.push(valorAtiv);
+
+            dadosCurva.push({ x: m, y: valorAtiv });
 
             if (minutosPacientes.includes(m)) {
-                coresPontosPacientes.push('#ef4444');
-                tamanhosPontosPacientes.push(7);
+                dadosPacientesPuntos.push({ x: m, y: valorAtiv });
+                dadosAtividadePre.push(ativPrePaciente);
             } else {
-                coresPontosPacientes.push('transparent');
-                tamanhosPontosPacientes.push(0);
+                dadosPacientesPuntos.push({ x: m, y: null });
+                dadosAtividadePre.push(null);
             }
 
             if (minutosAuto.includes(m)) {
-                dadosDosesAutoAcima.push(valorAtiv + 1.5);
+                dadosDosesAutoAcima.push({ x: m, y: valorAtiv + 1.5 });
             } else {
-                dadosDosesAutoAcima.push(null);
+                dadosDosesAutoAcima.push({ x: m, y: null });
             }
 
             if (minutosExtras.includes(m)) {
-                dadosDosesExtrasAcima.push(valorAtiv + 1.5);
+                dadosDosesExtrasAcima.push({ x: m, y: valorAtiv + 1.5 });
             } else {
-                dadosDosesExtrasAcima.push(null);
+                dadosDosesExtrasAcima.push({ x: m, y: null });
             }
         });
 
@@ -420,20 +473,29 @@
         meuGrafico = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
                 datasets: [
                     {
                         label: 'Atividade Restante A(t) [mCi]',
                         data: dadosCurva,
+                        atividadePrePaciente: dadosAtividadePre,
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        pointBackgroundColor: coresPontosPacientes,
-                        pointBorderColor: coresPontosPacientes,
-                        pointRadius: tamanhosPontosPacientes,
-                        pointHoverRadius: 9,
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.2
+                        tension: 0.2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0
+                    },
+                    {
+                        label: 'Pacientes',
+                        data: dadosPacientesPuntos,
+                        borderColor: 'transparent',
+                        backgroundColor: '#ef4444',
+                        pointBackgroundColor: '#ef4444',
+                        pointBorderColor: '#ef4444',
+                        pointRadius: 7,
+                        pointHoverRadius: 9,
+                        showLine: false
                     },
                     {
                         label: 'Doses Automáticas (10 mCi)',
@@ -464,6 +526,50 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                let minutosTotais = context[0].parsed.x;
+                                return minutosParaHoraStr(minutosTotais);
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label === 'Pacientes') label = 'Atividade Restante A(t)';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    let val = context.parsed.y;
+                                    if (context.datasetIndex === 2 || context.datasetIndex === 3) {
+                                        val -= 1.5;
+                                    }
+                                    if (val < 0) val = 0;
+                                    label += val.toFixed(2).replace('.', ',') + ' mCi';
+                                }
+                                
+                                const index = context.dataIndex;
+                                const dataset0 = context.chart.data.datasets[0];
+                                if (context.datasetIndex === 1) { // Paciente
+                                    const ativPre = dataset0.atividadePrePaciente[index];
+                                    if (ativPre !== undefined && ativPre !== null) {
+                                        let minutosTotais = context.parsed.x;
+                                        let h = Math.floor(minutosTotais / 60);
+                                        let m = minutosTotais % 60;
+                                        let minAnt = m - 1 < 0 ? 59 : m - 1;
+                                        let hAnt = m - 1 < 0 ? (h - 1 + 24) % 24 : h;
+                                        let hFormat = `${String(hAnt).padStart(2, '0')}:${String(minAnt).padStart(2, '0')}`;
+                                        return [
+                                            label,
+                                            `Pré-Aplicação (${hFormat}:59): ${ativPre.toFixed(2).replace('.', ',')} mCi`
+                                        ];
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
                 onClick: (e, elements) => {
                     const dataAtual = document.getElementById('filtroData').value;
                     if (!reposicoesExtrasPorData[dataAtual]) reposicoesExtrasPorData[dataAtual] = [];
@@ -473,9 +579,10 @@
                         const hit = elements[0];
                         const datasetIndex = hit.datasetIndex;
                         const index = hit.index;
-                        let horarioClicado = labels[index];
+                        const minutosClicados = meuGrafico.data.datasets[datasetIndex].data[index].x;
+                        let horarioClicado = minutosParaHoraStr(minutosClicados);
 
-                        if (datasetIndex === 1) {
+                        if (datasetIndex === 2) { // Dose Auto
                             let escolhaAuto = prompt(`🔵 Dose Automática às ${horarioClicado}.\n\nDeseja alterar o horário desta dose de reposição?\nDigite o NOVO HORÁRIO (HH:MM):`, horarioClicado);
                             if (escolhaAuto !== null && escolhaAuto.includes(':')) {
                                 let pacAlvo = pacientes.find(p => p.horaStr === horarioClicado) || pacientes[0];
@@ -487,7 +594,7 @@
                             return;
                         }
 
-                        if (datasetIndex === 2) {
+                        if (datasetIndex === 3) { // Dose Extra
                             let escolhaDose = prompt(`🟠 Dose Extra às ${horarioClicado}.\n\nDigite:\n1 - Alterar Horário\n2 - Remover Dose Extra`, "1");
                             if (escolhaDose === "1") {
                                 let novoH = prompt("Digite o NOVO HORÁRIO (HH:MM):", horarioClicado);
@@ -505,7 +612,7 @@
                             return;
                         }
 
-                        let pacEncontrado = pacientes.find(p => p.horaStr === horarioClicado);
+                        let pacEncontrado = pacientes.find(p => p.minutos === minutosClicados);
                         if (pacEncontrado) {
                             let escolha = prompt(`🔴 Paciente às ${pacEncontrado.horaStr} (${pacEncontrado.peso} kg).\n\nDigite:\n1 - Alterar Horário / Peso\n2 - Remover Paciente`, "1");
                             if (escolha === "1") {
@@ -523,7 +630,7 @@
                                 aoDigitarPacientes();
                             } else if (escolha === "2") {
                                 if (confirm(`Remover paciente das ${pacEncontrado.horaStr}?`)) {
-                                    pacientes = pacientes.filter(p => p.horaStr !== pacEncontrado.horaStr);
+                                    pacientes = pacientes.filter(p => p.minutos !== pacEncontrado.minutos);
                                     document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
                                     aoDigitarPacientes();
                                 }
@@ -534,8 +641,9 @@
 
                     const canvasPosition = Chart.helpers.getRelativePosition(e, meuGrafico);
                     const dataX = meuGrafico.scales.x.getValueForPixel(canvasPosition.x);
-                    if (dataX !== undefined && labels[dataX]) {
-                        let horarioClicado = labels[dataX];
+                    if (dataX !== undefined) {
+                        let minutosarredondados = Math.round(dataX / 5) * 5;
+                        let horarioClicado = minutosParaHoraStr(minutosarredondados);
                         if (confirm(`Deseja adicionar uma Reposição Extra (Laranja) de 10 mCi às ${horarioClicado}?`)) {
                             reposicoesExtrasPorData[dataAtual].push(horarioClicado);
                             aoDigitarPacientes();
@@ -548,7 +656,17 @@
                         max: 25, 
                         title: { display: true, text: 'Atividade (mCi)' } 
                     },
-                    x: { title: { display: true, text: 'Horário (🔴 Pacientes | 🔵 Doses Auto | 🟠 Doses Extras | Clique na bola desejada)' } }
+                    x: { 
+                        type: 'linear',
+                        position: 'bottom',
+                        title: { display: true, text: 'Horário Proporcional (🔴 Pacientes | 🔵 Doses Auto | 🟠 Doses Extras)' },
+                        ticks: {
+                            callback: function(value) {
+                                return minutosParaHoraStr(value);
+                            },
+                            stepSize: 30
+                        }
+                    }
                 }
             }
         });
@@ -687,7 +805,7 @@
                     let repsMin = repsExtrasDia.map(h => converterHoraParaMinutos(h));
 
                     pacientesTemp.forEach((p, idx) => {
-                        let dt = p.min - ultMin;
+                        let t = p.min - ultMin;
                         if (dt > 0) est = est * Math.exp(- (0.693 / 109.8) * dt);
                         ultMin = p.min;
 
