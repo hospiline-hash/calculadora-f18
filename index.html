@@ -14,7 +14,6 @@
             --text-color: #1e293b;
         }
 
-        /* Bloqueio de seleção de texto para dificultar cópias */
         body { 
             font-family: 'Segoe UI', Arial, sans-serif; 
             padding: 20px; 
@@ -28,7 +27,6 @@
             user-select: none; 
         }
 
-        /* Permitir selecionar texto apenas dentro de inputs, textareas para digitação normal */
         input, select, textarea {
             -webkit-user-select: text;
             -moz-user-select: text;
@@ -204,13 +202,7 @@
 
 <script>
     // --- SCRIPTS DE SEGURANÇA E BLOQUEIO ---
-    
-    // 1. Bloquear menu de contexto (botão direito do mouse)
-    document.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-    });
-
-    // 2. Bloquear atalhos de teclado comuns de Inspeção / Desenvolvedor (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, etc.)
+    document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     document.addEventListener('keydown', function(e) {
         if (
             e.key === 'F12' || 
@@ -222,8 +214,6 @@
             return false;
         }
     });
-
-    // --- FIM DOS SCRIPTS DE SEGURANÇA ---
 
     const BIN_ID = "6abe5e5effd5d1605342b486";
     const API_KEY = "$2a$10$NipvyBy7s7OM50qZMajLN.04okYLf7FrONhthX.4awurbixP9ye3S";
@@ -354,7 +344,7 @@
                 }
 
                 if (index === 0) {
-                    // Primeiro paciente consome do lote inicial
+                    // Primeiro paciente
                 } else if (estoqueAtual < pac.doseNecessaria) {
                     let horarioAlvo = overridesAuto[pac.horaStr] !== undefined ? overridesAuto[pac.horaStr] : pac.horaStr;
                     reposicoesAutoSet.add(horarioAlvo);
@@ -550,7 +540,7 @@
                                 
                                 const index = context.dataIndex;
                                 const dataset0 = context.chart.data.datasets[0];
-                                if (context.datasetIndex === 1) { // Paciente
+                                if (context.datasetIndex === 1) { 
                                     const ativPre = dataset0.atividadePrePaciente[index];
                                     if (ativPre !== undefined && ativPre !== null) {
                                         let minutosTotais = context.parsed.x;
@@ -582,7 +572,7 @@
                         const minutosClicados = meuGrafico.data.datasets[datasetIndex].data[index].x;
                         let horarioClicado = minutosParaHoraStr(minutosClicados);
 
-                        if (datasetIndex === 2) { // Dose Auto
+                        if (datasetIndex === 2) { 
                             let escolhaAuto = prompt(`🔵 Dose Automática às ${horarioClicado}.\n\nDeseja alterar o horário desta dose de reposição?\nDigite o NOVO HORÁRIO (HH:MM):`, horarioClicado);
                             if (escolhaAuto !== null && escolhaAuto.includes(':')) {
                                 let pacAlvo = pacientes.find(p => p.horaStr === horarioClicado) || pacientes[0];
@@ -594,7 +584,7 @@
                             return;
                         }
 
-                        if (datasetIndex === 3) { // Dose Extra
+                        if (datasetIndex === 3) { 
                             let escolhaDose = prompt(`🟠 Dose Extra às ${horarioClicado}.\n\nDigite:\n1 - Alterar Horário\n2 - Remover Dose Extra`, "1");
                             if (escolhaDose === "1") {
                                 let novoH = prompt("Digite o NOVO HORÁRIO (HH:MM):", horarioClicado);
@@ -685,9 +675,11 @@
         try {
             document.getElementById('sync-status').innerText = "(Carregando...)";
             const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': API_KEY }
+                headers: { 
+                    'X-Master-Key': API_KEY
+                }
             });
-            if (!resposta.ok) throw new Error('Erro');
+            if (!resposta.ok) throw new Error('Erro no carregamento remoto');
             const resultado = await resposta.json();
             bancoDadosRemoto = resultado.record || resultado;
             if (!bancoDadosRemoto.historicoDias) bancoDadosRemoto.historicoDias = {};
@@ -697,6 +689,7 @@
             calcularEstatisticasGlobais();
             document.getElementById('sync-status').innerText = "(Sincronizado)";
         } catch (e) {
+            console.error(e);
             document.getElementById('sync-status').innerText = "(Erro de conexão)";
         }
     }
@@ -704,7 +697,9 @@
     async function carregarDadosNuvemBackground() {
         try {
             const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': API_KEY }
+                headers: { 
+                    'X-Master-Key': API_KEY
+                }
             });
             if (!resposta.ok) return;
             const resultado = await resposta.json();
@@ -746,13 +741,20 @@
 
             calcularEstatisticasGlobais();
 
-            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+            const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-Master-Key': API_KEY,
+                    'X-Bin-Versioning': 'false'
+                },
                 body: JSON.stringify(bancoDadosRemoto)
             });
+
+            if (!resposta.ok) throw new Error('Erro ao salvar no servidor');
             document.getElementById('sync-status').innerText = "(Salvo na Nuvem)";
         } catch (e) {
+            console.error(e);
             document.getElementById('sync-status').innerText = "(Erro ao salvar)";
         }
     }
@@ -805,7 +807,7 @@
                     let repsMin = repsExtrasDia.map(h => converterHoraParaMinutos(h));
 
                     pacientesTemp.forEach((p, idx) => {
-                        let t = p.min - ultMin;
+                        let dt = p.min - ultMin; // CORRIGIDO: alterado de t para dt
                         if (dt > 0) est = est * Math.exp(- (0.693 / 109.8) * dt);
                         ultMin = p.min;
 
