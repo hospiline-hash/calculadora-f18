@@ -35,6 +35,7 @@
         }
 
         .card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; border-top: 4px solid var(--primary-color); }
+        .card.success { border-top-color: #10b981; }
         
         .header { text-align: center; margin-bottom: 20px; }
         .header img {
@@ -71,7 +72,7 @@
         .btn-danger { background: #dc2626; color: white; }
         .btn-danger:hover { background: #b91c1c; }
 
-        .result { margin-top: 20px; padding: 12px; background: #f1f5f9; border-left: 4px solid #3b82f6; border-radius: 6px; font-weight: 600; font-size: 14px; }
+        .result { margin-top: 20px; padding: 12px; background: #f1f5f9; border-left: 4px solid #3b82f6; border-radius: 6px; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
         .stats { background: #f0fdf4; border-top: 4px solid #10b981; padding: 20px; border-radius: 8px; margin-top: 20px; }
         .loading { font-size: 12px; color: #64748b; font-style: italic; }
         .chart-container { position: relative; margin-top: 20px; width: 100%; height: 350px; }
@@ -85,6 +86,25 @@
             color: var(--secondary-color);
             border-top: 1px solid #e2e8f0;
             padding-top: 15px;
+        }
+        
+        .info-status-fator {
+            font-size: 12px;
+            margin-top: 4px;
+            font-weight: 600;
+            color: #059669;
+        }
+
+        .sync-status {
+            font-size: 11px;
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .input-rapido-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
         }
 
         @media print {
@@ -133,43 +153,60 @@
 <div class="card">
     <div class="header">
         <img src="logo.png" alt="Logo Hospiline">
-        <h2>Lista de Pacientes do Dia (Horário = Peso)</h2>
+        <h2>Lista de Pacientes do Dia</h2>
     </div>
 
     <div class="historico-box">
         <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 250px;">
+            <div style="flex: 1; min-width: 220px;">
                 <label for="dataInsercao">Data de Inserção / Atendimento:</label>
                 <input type="date" id="dataInsercao" onchange="aoMudarDataInsercao()">
             </div>
-            <div style="flex: 1; min-width: 250px;">
+            <div style="flex: 1; min-width: 220px;">
                 <label for="filtroData">Consultar Histórico (Visualização):</label>
                 <input type="date" id="filtroData" onchange="carregarDadosPorData()">
+            </div>
+            <div style="flex: 1; min-width: 220px;">
+                <label for="fatorSubtle">Fator de Redução (Subtle AI):</label>
+                <input type="number" id="fatorSubtle" value="0.8" step="0.05" min="0.1" max="2.0" oninput="atualizarInfoFator(); aoDigitarPacientes();" placeholder="Ex: 0.8">
+                <div id="infoFatorTexto" class="info-status-fator">Economia de 20%</div>
+            </div>
+            <div style="flex: 1; min-width: 220px;">
+                <label for="dosePadraoLote">Dose Inicial do Lote (mCi):</label>
+                <input type="number" id="dosePadraoLote" value="10" step="0.5" min="1" max="50" oninput="aoDigitarPacientes()">
+                <button type="button" onclick="salvarDosePadrao()" style="margin-top: 5px; padding: 6px; font-size: 12px; background: #3b82f6;">Salvar como Padrão</button>
             </div>
         </div>
     </div>
     
     <select id="radiofarmaco" onchange="processarSimulacaoCompleta()" style="display:none;">
-        <option value="109.8" selected>FDG (¹⁸F-FDG)</option>
+        <option value="109.8" selected="">FDG (¹⁸F-FDG)</option>
     </select>
 
-    <label for="listaPacientes">Informe cada paciente no formato <i>HH:MM = Peso</i> | Cada linha representa um atendimento:</label>
+    <label>Adicionar Paciente Rápido (Máscara automática):</label>
+    <div class="input-rapido-container">
+        <input type="text" id="inputHoraRapida" placeholder="Horário (Ex: 0730)" style="flex: 1;" maxlength="5">
+        <input type="number" id="inputPesoRapido" placeholder="Peso em kg (Ex: 80)" style="flex: 1;">
+        <button type="button" class="btn-success" onclick="adicionarPacienteRapido()" style="margin-top: 0; flex: 1;">+ Adicionar</button>
+    </div>
+    <span style="font-size: 11px; color: #64748b;">Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.</span>
+
+    <label for="listaPacientes" style="margin-top: 15px;">Lista Completa (HH:MM = Peso) | Editável:</label>
     <textarea id="listaPacientes" rows="5" placeholder="Exemplo:&#10;07:00 = 82&#10;08:00 = 90" oninput="aoDigitarPacientes()"></textarea>
 
-    <input type="hidden" id="listaReposicoesExtras" value="">
-
     <div class="result" id="resultado">
-        Aguardando inserção de dados dos pacientes...
+        <span id="textoResultadoSimulacao">Aguardando inserção de dados dos pacientes...</span>
+        <span id="syncStatus" class="sync-status"></span>
     </div>
 </div>
 
 <div class="card">
-    <h3>Curva do Decaimento e Reposições (Teto Máx: 20 mCi)</h3>
+    <h3 id="tituloGraficoTeto">Curva do Decaimento e Reposições (Teto Máx: 20 mCi)</h3>
     <p style="font-size: 13px; color: #475569; margin-top: -5px; line-height: 1.4;">
         🔴 <b>Bolas Vermelhas:</b> Pacientes.<br>
         🔵 <b>Bolas Azuis (Acima):</b> Reposições Automáticas (Clique para alterar/mover).<br>
         🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais (Clique para alterar/remover).<br>
-        ✨ <b>Espaço vazio / Linha:</b> Clique para adicionar nova Reposição Extra.
+        ✨ <b>Espaço vazio / Linha:</b> Clique para adicionar novo Paciente ou Dose Extra.
     </p>
     <div class="chart-container">
         <canvas id="graficoDecaimento"></canvas>
@@ -178,7 +215,13 @@
 
 <div class="card">
     <h3>Lista para Pedido (Distribuidora - TXT)</h3>
-    <textarea id="listaPedido" rows="6" readonly style="background: #f8fafc; font-family: monospace;" placeholder="A lista de horários aparecerá aqui..."></textarea>
+    <label for="modoHorarioPedido">Regra de Horário para Distribuidora:</label>
+    <select id="modoHorarioPedido" onchange="processarSimulacaoCompleta()">
+        <option value="exato" selected>Horário Exato (Ex: 08:00, 09:00, 09:30)</option>
+        <option value="horaEmHora">De Hora em Hora (Antecipado / Consolidado - Ex: 09:00 (2 doses))</option>
+    </select>
+
+    <textarea id="listaPedido" rows="6" readonly="" style="background: #f8fafc; font-family: monospace; margin-top: 10px;" placeholder="A lista de horários aparecerá aqui..."></textarea>
     <button class="btn-warning" onclick="baixarTxtPedido()">Baixar Lista em TXT</button>
 </div>
 
@@ -197,7 +240,7 @@
 </div>
 
 <div class="footer-copyright">
-    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 2.2
+    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 3.1
 </div>
 
 <script>
@@ -229,9 +272,94 @@
         const hojeStr = obterDataAtualStr();
         document.getElementById('dataInsercao').value = hojeStr;
         document.getElementById('filtroData').value = hojeStr;
+        
+        const doseSalva = localStorage.getItem('dosePadraoLoteConfig');
+        if (doseSalva) {
+            document.getElementById('dosePadraoLote').value = doseSalva;
+        }
+
         carregarDadosNuvemInicial();
+        atualizarInfoFator();
         setInterval(carregarDadosNuvemBackground, 15000);
+
+        const inputHora = document.getElementById('inputHoraRapida');
+        inputHora.addEventListener('input', function(e) {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length >= 3) {
+                v = v.substring(0, 2) + ':' + v.substring(2, 4);
+            }
+            e.target.value = v;
+        });
+
+        document.getElementById('inputPesoRapido').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                adicionarPacienteRapido();
+            }
+        });
     };
+
+    function adicionarPacienteRapido() {
+        let hora = document.getElementById('inputHoraRapida').value.trim();
+        let peso = document.getElementById('inputPesoRapido').value.trim();
+
+        if (!hora || !peso || isNaN(peso)) {
+            alert("Informe um horário válido e o peso do paciente.");
+            return;
+        }
+
+        if (hora.length === 4 && !hora.includes(':')) {
+            hora = hora.substring(0, 2) + ':' + hora.substring(2, 4);
+        }
+
+        let linhaNueva = `${hora} = ${peso}`;
+        let textarea = document.getElementById('listaPacientes');
+        
+        if (textarea.value.trim() === "") {
+            textarea.value = linhaNueva;
+        } else {
+            textarea.value = textarea.value.trim() + '\n' + linhaNueva;
+        }
+
+        document.getElementById('inputHoraRapida').value = "";
+        document.getElementById('inputPesoRapido').value = "";
+        document.getElementById('inputHoraRapida').focus();
+
+        aoDigitarPacientes();
+    }
+
+    function atualizarInfoFator() {
+        const valFator = parseFloat(document.getElementById('fatorSubtle').value);
+        const divInfo = document.getElementById('infoFatorTexto');
+        
+        if (isNaN(valFator)) {
+            divInfo.innerText = "";
+            return;
+        }
+
+        let percentual = Math.round((1 - valFator) * 100);
+        if (percentual > 0) {
+            divInfo.style.color = "#059669";
+            divInfo.innerText = `📉 Economia de ${percentual}% da dose`;
+        } else if (percentual < 0) {
+            let aumento = Math.abs(percentual);
+            divInfo.style.color = "#d97706";
+            divInfo.innerText = `📈 Aumento de ${aumento}% da dose`;
+        } else {
+            divInfo.style.color = "#64748b";
+            divInfo.innerText = `⚖️ Dose Padrão (100%)`;
+        }
+    }
+
+    function salvarDosePadrao() {
+        const valDose = document.getElementById('dosePadraoLote').value;
+        if (!valDose || isNaN(valDose) || parseFloat(valDose) <= 0) {
+            alert("Insira um valor válido para a dose padrão.");
+            return;
+        }
+        localStorage.setItem('dosePadraoLoteConfig', valDose);
+        alert(`Dose inicial padrão de ${valDose} mCi salva com sucesso!`);
+        processarSimulacaoCompleta();
+    }
 
     function obterDataAtualStr() {
         const d = new Date();
@@ -262,6 +390,7 @@
         if (carregandoRemoto) return;
         processarSimulacaoCompleta();
         clearTimeout(temporizadorSalvamento);
+        document.getElementById('syncStatus').innerText = "(Digitando...)";
         temporizadorSalvamento = setTimeout(() => {
             salvarDadosNuvem();
         }, 1000);
@@ -290,32 +419,41 @@
             let reposicoesManuaisArr = reposicoesExtrasPorData[dataAtual] || [];
             let overridesAuto = overridesAutomáticosPorData[dataAtual] || {};
 
+            const a0Inicial = parseFloat(document.getElementById('dosePadraoLote').value) || 10;
+            const tetoMaximo = a0Inicial * 2;
+            document.getElementById('tituloGraficoTeto').innerText = `Curva do Decaimento e Reposições (Teto Máx: ${tetoMaximo} mCi)`;
+
             if (!textoPacientes) {
-                document.getElementById('resultado').innerHTML = "Insira os dados dos pacientes acima.";
+                document.getElementById('textoResultadoSimulacao').innerHTML = "Insira os dados dos pacientes acima.";
                 document.getElementById('listaPedido').value = "";
                 if (meuGrafico) meuGrafico.destroy();
                 return;
             }
 
-            const subtle = 0.8;
+            const inputSubtle = document.getElementById('fatorSubtle');
+            const subtle = inputSubtle ? parseFloat(inputSubtle.value) || 0.8 : 0.8;
+            
             const meiaVidaMin = obterMeiaVidaMinutos();
             const lambda = 0.693 / meiaVidaMin;
             let pacientes = [];
             
             textoPacientes.split('\n').forEach(linha => {
-                if (linha.includes('=')) {
-                    let partes = linha.split('=');
-                    let horaBruta = partes[0].trim();
-                    let minTotais = converterHoraParaMinutos(horaBruta);
-                    let horaStr = minutosParaHoraStr(minTotais);
-                    let pesoVal = parseFloat(partes[1].trim());
-                    if (!isNaN(pesoVal)) {
-                        pacientes.push({
-                            minutos: minTotais,
-                            horaStr: horaStr,
-                            peso: pesoVal,
-                            doseNecessaria: pesoVal * 0.1 * subtle
-                        });
+                let linhaLimpa = linha.trim();
+                if (linhaLimpa) {
+                    let partes = linhaLimpa.includes('=') ? linhaLimpa.split('=') : linhaLimpa.split(' ');
+                    if (partes.length >= 2) {
+                        let horaBruta = partes[0].trim();
+                        let minTotais = converterHoraParaMinutos(horaBruta);
+                        let horaStr = minutosParaHoraStr(minTotais);
+                        let pesoVal = parseFloat(partes[1].trim());
+                        if (!isNaN(pesoVal) && !isNaN(minTotais)) {
+                            pacientes.push({
+                                minutos: minTotais,
+                                horaStr: horaStr,
+                                peso: pesoVal,
+                                doseNecessaria: pesoVal * 0.1 * subtle
+                            });
+                        }
                     }
                 }
             });
@@ -324,7 +462,6 @@
             pacientes.sort((a, b) => a.minutos - b.minutos);
 
             let minInicioLote = pacientes[0].minutos;
-            let a0Inicial = 10;
             let estoqueAtual = a0Inicial;
             let ultimoMinutoAvaliado = minInicioLote;
             
@@ -339,8 +476,8 @@
                 ultimoMinutoAvaliado = pac.minutos;
 
                 if (reposicoesManuaisArr.includes(pac.horaStr)) {
-                    estoqueAtual += 10;
-                    if (estoqueAtual > 20) estoqueAtual = 20;
+                    estoqueAtual += a0Inicial;
+                    if (estoqueAtual > tetoMaximo) estoqueAtual = tetoMaximo;
                 }
 
                 if (index === 0) {
@@ -349,8 +486,8 @@
                     let horarioAlvo = overridesAuto[pac.horaStr] !== undefined ? overridesAuto[pac.horaStr] : pac.horaStr;
                     reposicoesAutoSet.add(horarioAlvo);
                     
-                    estoqueAtual += 10; 
-                    if (estoqueAtual > 20) estoqueAtual = 20;
+                    estoqueAtual += a0Inicial; 
+                    if (estoqueAtual > tetoMaximo) estoqueAtual = tetoMaximo;
                 }
                 estoqueAtual -= pac.doseNecessaria;
                 if (estoqueAtual < 0) estoqueAtual = 0;
@@ -363,26 +500,54 @@
             let pedidosReposicao = Array.from(repositorioUnicoSet);
             pedidosReposicao.sort((a, b) => converterHoraParaMinutos(a) - converterHoraParaMinutos(b));
 
-            let totalQtdPedidos = pedidosReposicao.length;
-            let textoTxt = pedidosReposicao.join('\n');
+            let modoHorario = document.getElementById('modoHorarioPedido').value;
+            let textoTxt = "";
+
+            if (modoHorario === "horaEmHora") {
+                let agrupadoPorHora = {};
+                pedidosReposicao.forEach(horarioStr => {
+                    let partes = horarioStr.split(':');
+                    let horaCheia = `${partes[0]}:00`;
+                    
+                    if (!agrupadoPorHora[horaCheia]) {
+                        agrupadoPorHora[horaCheia] = 0;
+                    }
+                    agrupadoPorHora[horaCheia]++;
+                });
+
+                let linhasFormatadas = [];
+                Object.keys(agrupadoPorHora).sort().forEach(h => {
+                    let qtd = agrupadoPorHora[h];
+                    if (qtd > 1) {
+                        linhasFormatadas.push(`${h} (${qtd} doses)`);
+                    } else {
+                        linhasFormatadas.push(h);
+                    }
+                });
+                textoTxt = linhasFormatadas.join('\n');
+            } else {
+                textoTxt = pedidosReposicao.join('\n');
+            }
+
             document.getElementById('listaPedido').value = textoTxt;
 
+            let totalQtdPedidos = pedidosReposicao.length;
             let totalPacientesAtual = pacientes.length;
             let economiaDia = totalPacientesAtual - totalQtdPedidos;
             if (economiaDia < 0) economiaDia = 0;
 
-            document.getElementById('resultado').innerHTML = `
-                Simulação concluída com sucesso!<br>
-                <strong>Total de pedidos de reposição:</strong> ${totalQtdPedidos} | <strong>Economia do dia:</strong> ${economiaDia}
+            document.getElementById('textoResultadoSimulacao').innerHTML = `
+                Simulação concluída! (Fator: <strong>${subtle}</strong> | Lote: <strong>${a0Inicial} mCi</strong>)<br>
+                <strong>Pedidos:</strong> ${totalQtdPedidos} | <strong>Economia do dia:</strong> ${economiaDia}
             `;
 
-            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, lambda);
+            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, tetoMaximo, lambda);
         } catch (e) {
             console.error(e);
         }
     }
 
-    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, lambda) {
+    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, tetoMaximo, lambda) {
         let fimSimulacao = minInicio + 420; 
         
         let minutosUnicos = new Set();
@@ -412,7 +577,7 @@
             pedidosHorarios.forEach(horarioPedido => {
                 let minP = converterHoraParaMinutos(horarioPedido);
                 if (minP !== minInicio && m >= minP) {
-                    ativ += 10 * Math.exp(-lambda * (m - minP));
+                    ativ += a0Inicial * Math.exp(-lambda * (m - minP));
                 }
             });
 
@@ -422,7 +587,7 @@
                 }
             });
 
-            if (ativ > 20) ativ = 20;
+            if (ativ > tetoMaximo) ativ = tetoMaximo;
             let ativPrePaciente = ativ > 0 ? parseFloat(ativ.toFixed(2)) : 0;
 
             pacientes.forEach(pac => {
@@ -444,14 +609,15 @@
                 dadosAtividadePre.push(null);
             }
 
+            let deslocamentoPonto = a0Inicial * 0.15;
             if (minutosAuto.includes(m)) {
-                dadosDosesAutoAcima.push({ x: m, y: valorAtiv + 1.5 });
+                dadosDosesAutoAcima.push({ x: m, y: valorAtiv + deslocamentoPonto });
             } else {
                 dadosDosesAutoAcima.push({ x: m, y: null });
             }
 
             if (minutosExtras.includes(m)) {
-                dadosDosesExtrasAcima.push({ x: m, y: valorAtiv + 1.5 });
+                dadosDosesExtrasAcima.push({ x: m, y: valorAtiv + deslocamentoPonto });
             } else {
                 dadosDosesExtrasAcima.push({ x: m, y: null });
             }
@@ -488,7 +654,7 @@
                         showLine: false
                     },
                     {
-                        label: 'Doses Automáticas (10 mCi)',
+                        label: 'Doses Automáticas',
                         data: dadosDosesAutoAcima,
                         borderColor: 'transparent',
                         backgroundColor: '#3b82f6',
@@ -500,7 +666,7 @@
                         showLine: false
                     },
                     {
-                        label: 'Doses Extras (10 mCi)',
+                        label: 'Doses Extras',
                         data: dadosDosesExtrasAcima,
                         borderColor: 'transparent',
                         backgroundColor: '#f59e0b',
@@ -532,7 +698,7 @@
                                 if (context.parsed.y !== null) {
                                     let val = context.parsed.y;
                                     if (context.datasetIndex === 2 || context.datasetIndex === 3) {
-                                        val -= 1.5;
+                                        val -= (a0Inicial * 0.15);
                                     }
                                     if (val < 0) val = 0;
                                     label += val.toFixed(2).replace('.', ',') + ' mCi';
@@ -632,18 +798,33 @@
                     const canvasPosition = Chart.helpers.getRelativePosition(e, meuGrafico);
                     const dataX = meuGrafico.scales.x.getValueForPixel(canvasPosition.x);
                     if (dataX !== undefined) {
-                        let minutosarredondados = Math.round(dataX / 5) * 5;
-                        let horarioClicado = minutosParaHoraStr(minutosarredondados);
-                        if (confirm(`Deseja adicionar uma Reposição Extra (Laranja) de 10 mCi às ${horarioClicado}?`)) {
-                            reposicoesExtrasPorData[dataAtual].push(horarioClicado);
-                            aoDigitarPacientes();
+                        let minutosArredondados = Math.round(dataX / 5) * 5;
+                        let horarioSugerido = minutosParaHoraStr(minutosArredondados);
+
+                        let tipoAdd = prompt(`O que deseja adicionar às ${horarioSugerido}?\n\nDigite:\n1 - Paciente\n2 - Dose Extra (${a0Inicial} mCi)`, "1");
+
+                        if (tipoAdd === "1") {
+                            let horaPac = prompt("Digite o Horário do Paciente (HH:MM):", horarioSugerido);
+                            let pesoPac = prompt("Digite o Peso do Paciente (kg):", "80");
+                            if (horaPac && horaPac.includes(':') && pesoPac && !isNaN(pesoPac)) {
+                                let textarea = document.getElementById('listaPacientes');
+                                let linhaNueva = `${horaPac.trim()} = ${pesoPac.trim()}`;
+                                textarea.value = textarea.value.trim() ? textarea.value.trim() + '\n' + linhaNueva : linhaNueva;
+                                aoDigitarPacientes();
+                            }
+                        } else if (tipoAdd === "2") {
+                            let horaExtra = prompt("Digite o Horário da Dose Extra (HH:MM):", horarioSugerido);
+                            if (horaExtra && horaExtra.includes(':')) {
+                                reposicoesExtrasPorData[dataAtual].push(horaExtra.trim());
+                                aoDigitarPacientes();
+                            }
                         }
                     }
                 },
                 scales: {
                     y: { 
                         beginAtZero: true, 
-                        max: 25, 
+                        max: tetoMaximo * 1.15, 
                         title: { display: true, text: 'Atividade (mCi)' } 
                     },
                     x: { 
@@ -664,6 +845,10 @@
 
     function baixarTxtPedido() {
         let texto = document.getElementById('listaPedido').value;
+        if (!texto) {
+            alert("Nenhum pedido gerado para baixar.");
+            return;
+        }
         let blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
         let link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -753,9 +938,11 @@
 
             if (!resposta.ok) throw new Error('Erro ao salvar no servidor');
             document.getElementById('sync-status').innerText = "(Salvo na Nuvem)";
+            document.getElementById('syncStatus').innerText = "Salvo automaticamente ✔";
         } catch (e) {
             console.error(e);
             document.getElementById('sync-status').innerText = "(Erro ao salvar)";
+            document.getElementById('syncStatus').innerText = "Erro ao salvar ❌";
         }
     }
 
@@ -787,41 +974,46 @@
                 let pacientesTemp = [];
                 
                 linhas.forEach(l => {
-                    if (l.includes('=')) {
-                        let partes = l.split('=');
-                        let hStr = partes[0].trim();
-                        let pVal = parseFloat(partes[1].trim());
-                        if (!isNaN(pVal)) {
-                            pacientesTemp.push({ min: converterHoraParaMinutos(hStr), dose: pVal * 0.1 * 0.8, hStr });
+                    let linhaLimpa = l.trim();
+                    if (linhaLimpa) {
+                        let partes = linhaLimpa.includes('=') ? linhaLimpa.split('=') : linhaLimpa.split(' ');
+                        if (partes.length >= 2) {
+                            let hStr = partes[0].trim();
+                            let pVal = parseFloat(partes[1].trim());
+                            if (!isNaN(pVal)) {
+                                pacientesTemp.push({ min: converterHoraParaMinutos(hStr), dose: pVal * 0.1 * 0.8, hStr });
+                            }
                         }
                     }
                 });
 
                 if (pacientesTemp.length > 0) {
                     pacientesTemp.sort((a, b) => a.min - b.min);
-                    let est = 10;
+                    let a0Inicial = 10;
+                    let est = a0Inicial;
                     let ultMin = pacientesTemp[0].min;
                     let qtdAuto = 1;
 
                     let repsExtrasDia = diaObj.reposicoesExtras || [];
                     let repsMin = repsExtrasDia.map(h => converterHoraParaMinutos(h));
+                    let tetoMaximo = a0Inicial * 2;
 
                     pacientesTemp.forEach((p, idx) => {
-                        let dt = p.min - ultMin; // CORRIGIDO: alterado de t para dt
+                        let dt = p.min - ultMin;
                         if (dt > 0) est = est * Math.exp(- (0.693 / 109.8) * dt);
                         ultMin = p.min;
 
                         repsMin.forEach(rm => {
                             if (rm === p.min) {
-                                est += 10;
-                                if (est > 20) est = 20;
+                                est += a0Inicial;
+                                if (est > tetoMaximo) est = tetoMaximo;
                             }
                         });
 
                         if (idx > 0 && est < p.dose) {
                             qtdAuto++;
-                            est += 10;
-                            if (est > 20) est = 20;
+                            est += a0Inicial;
+                            if (est > tetoMaximo) est = tetoMaximo;
                         }
                         est -= p.dose;
                         if (est < 0) est = 0;
