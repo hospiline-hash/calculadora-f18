@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora de Decaimento e Reposição - F-18 / Gálio</title>
+    <title>Calculadora de Decaimento e Reposição - Rádio-Gestão</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -17,7 +17,7 @@
         body { 
             font-family: 'Segoe UI', Arial, sans-serif; 
             padding: 20px; 
-            max-width: 800px; 
+            max-width: 900px; 
             margin: 0 auto; 
             background-color: var(--bg-color); 
             color: var(--text-color); 
@@ -40,7 +40,7 @@
         .header { text-align: center; margin-bottom: 20px; }
         .header img {
             width: 100%;
-            max-width: 540px;
+            max-width: 450px;
             height: auto;
             display: block;
             margin: 0 auto 15px auto;
@@ -52,15 +52,12 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        .print-logo img {
-            max-width: 350px;
-            height: auto;
-        }
+        .print-logo img { max-width: 300px; height: auto; }
 
-        label { display: block; margin-top: 10px; font-weight: 600; color: #334155; }
-        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fcfcfc; }
+        label { display: block; margin-top: 10px; font-weight: 600; color: #334155; font-size: 13px; }
+        input, select, textarea { width: 100%; padding: 9px; margin-top: 4px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fcfcfc; }
         
-        button { margin-top: 15px; width: 100%; padding: 10px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 600; transition: background 0.2s; }
+        button { margin-top: 10px; width: 100%; padding: 9px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s; }
         button:hover { background: #334155; }
         
         .btn-success { background: #10b981; }
@@ -72,11 +69,21 @@
         .btn-danger { background: #dc2626; color: white; }
         .btn-danger:hover { background: #b91c1c; }
 
-        .result { margin-top: 20px; padding: 12px; background: #f1f5f9; border-left: 4px solid #3b82f6; border-radius: 6px; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .result { margin-top: 20px; padding: 12px; background: #f1f5f9; border-left: 4px solid #3b82f6; border-radius: 6px; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .stats { background: #f0fdf4; border-top: 4px solid #10b981; padding: 20px; border-radius: 8px; margin-top: 20px; }
         .loading { font-size: 12px; color: #64748b; font-style: italic; }
         .chart-container { position: relative; margin-top: 20px; width: 100%; height: 350px; }
-        .historico-box { background: #fffbeb; padding: 15px; border-radius: 6px; border: 1px solid #fde68a; margin-bottom: 15px; }
+        
+        .historico-box { background: #fffbeb; padding: 18px; border-radius: 6px; border: 1px solid #fde68a; margin-bottom: 15px; }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 15px;
+            align-items: start;
+        }
+        @media (max-width: 768px) {
+            .config-grid { grid-template-columns: 1fr; }
+        }
 
         .footer-copyright {
             text-align: center;
@@ -89,7 +96,7 @@
         }
         
         .info-status-fator {
-            font-size: 12px;
+            font-size: 11px;
             margin-top: 4px;
             font-weight: 600;
             color: #059669;
@@ -126,10 +133,6 @@
                 margin-bottom: 20px;
                 color: #065f46;
             }
-            .stats p {
-                font-size: 15px;
-                margin: 8px 0;
-            }
             #detalhes-diarios-print {
                 display: block !important;
                 margin-top: 20px;
@@ -137,16 +140,14 @@
                 padding-top: 15px;
             }
         }
-        #detalhes-diarios-print {
-            display: none;
-        }
+        #detalhes-diarios-print { display: none; }
     </style>
 </head>
 <body>
 
 <div class="print-logo">
     <img src="logo.png" alt="Logo Hospiline">
-    <h2 style="color: #1e293b; margin-top: 10px;">Relatório Consolidado de Gestão - F-18</h2>
+    <h2 style="color: #1e293b; margin-top: 10px;">Relatório Consolidado de Gestão - Radiofármacos</h2>
     <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 15px 0;">
 </div>
 
@@ -157,31 +158,45 @@
     </div>
 
     <div class="historico-box">
-        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 220px;">
+        <div class="config-grid">
+            <div>
                 <label for="dataInsercao">Data de Inserção / Atendimento:</label>
                 <input type="date" id="dataInsercao" onchange="aoMudarDataInsercao()">
             </div>
-            <div style="flex: 1; min-width: 220px;">
+            <div>
                 <label for="filtroData">Consultar Histórico (Visualização):</label>
                 <input type="date" id="filtroData" onchange="carregarDadosPorData()">
             </div>
-            <div style="flex: 1; min-width: 220px;">
+            <div>
+                <label for="radiofarmaco">Radiofármaco (Isótopo):</label>
+                <select id="radiofarmaco" onchange="aoMudarRadiofarmaco()">
+                    <option value="109.8" selected>¹⁸F-FDG (Meia-vida: 109.8 min)</option>
+                    <option value="360">⁹⁹ᵐTc - Tecnécio (Meia-vida: 360 min)</option>
+                    <option value="408">⁶⁸Ga - Gálio (Meia-vida: 68 min)</option>
+                    <option value="11520">¹³¹I - Iodo (Meia-vida: 8 dias)</option>
+                    <option value="9561.6">¹⁷⁷Lu - Lutécio (Meia-vida: 6.64 dias)</option>
+                    <option value="custom">Outro (Meia-Vida personalizada)</option>
+                </select>
+            </div>
+            <div id="boxMeiaVidaCustom" style="display: none;">
+                <label for="meiaVidaCustom">Meia-Vida Custom (min):</label>
+                <input type="number" id="meiaVidaCustom" value="109.8" step="0.1" oninput="aoDigitarPacientes()">
+            </div>
+            <div>
                 <label for="fatorSubtle">Fator de Redução (Subtle AI):</label>
                 <input type="number" id="fatorSubtle" value="0.8" step="0.05" min="0.1" max="2.0" oninput="atualizarInfoFator(); aoDigitarPacientes();" placeholder="Ex: 0.8">
                 <div id="infoFatorTexto" class="info-status-fator">Economia de 20%</div>
             </div>
-            <div style="flex: 1; min-width: 220px;">
+            <div>
                 <label for="dosePadraoLote">Dose Inicial do Lote (mCi):</label>
                 <input type="number" id="dosePadraoLote" value="10" step="0.5" min="1" max="50" oninput="aoDigitarPacientes()">
-                <button type="button" onclick="salvarConfiguracoesPadrao()" style="margin-top: 5px; padding: 6px; font-size: 12px; background: #3b82f6;">Salvar como Padrão</button>
+            </div>
+            <div>
+                <label style="visibility: hidden; margin-top: 10px;">Ação:</label>
+                <button type="button" onclick="salvarConfiguracoesPadrao()" style="background: #3b82f6; margin-top: 4px; height: 41px;">Salvar Configurações como Padrão</button>
             </div>
         </div>
     </div>
-    
-    <select id="radiofarmaco" onchange="processarSimulacaoCompleta()" style="display:none;">
-        <option value="109.8" selected="">FDG (¹⁸F-FDG)</option>
-    </select>
 
     <label>Adicionar Paciente Rápido (Máscara automática):</label>
     <div class="input-rapido-container">
@@ -203,10 +218,8 @@
 <div class="card">
     <h3 id="tituloGraficoTeto">Curva do Decaimento e Reposições</h3>
     <p style="font-size: 13px; color: #475569; margin-top: -5px; line-height: 1.4;">
-        🔴 <b>Bolas Vermelhas:</b> Pacientes.<br>
-        🔵 <b>Bolas Azuis (Acima):</b> Reposições Automáticas (Clique para alterar/mover).<br>
-        🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais (Clique para alterar/remover).<br>
-        ✨ <b>Espaço vazio / Linha:</b> Clique para adicionar novo Paciente ou Dose Extra.
+        📈 <b>Passe o mouse próximo à linha azul:</b> Visualiza o resíduo exato em mCi a qualquer minuto.<br>
+        🔴 <b>Bolas Vermelhas:</b> Pacientes | 🔵 <b>Bolas Azuis + Linhas Verticais:</b> Reposições Automáticas | 🟠 <b>Bolas Laranjas:</b> Doses Extras.
     </p>
     <div class="chart-container">
         <canvas id="graficoDecaimento"></canvas>
@@ -221,7 +234,7 @@
         <option value="horaEmHora">De Hora em Hora (Antecipado / Consolidado - Ex: 09:00 (2 doses))</option>
     </select>
 
-    <textarea id="listaPedido" rows="6" readonly="" style="background: #f8fafc; font-family: monospace; margin-top: 10px;" placeholder="A lista de horários aparecerá aqui..."></textarea>
+    <textarea id="listaPedido" rows="6" readonly style="background: #f8fafc; font-family: monospace; margin-top: 10px;" placeholder="A lista de horários aparecerá aqui..."></textarea>
     <button class="btn-warning" onclick="baixarTxtPedido()">Baixar Lista em TXT</button>
 </div>
 
@@ -240,11 +253,10 @@
 </div>
 
 <div class="footer-copyright">
-    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 3.2
+    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.0
 </div>
 
 <script>
-    // --- SCRIPTS DE SEGURANÇA E BLOQUEIO ---
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     document.addEventListener('keydown', function(e) {
         if (
@@ -261,19 +273,37 @@
     const BIN_ID = "6abe5e5effd5d1605342b486";
     const API_KEY = "$2a$10$NipvyBy7s7OM50qZMajLN.04okYLf7FrONhthX.4awurbixP9ye3S";
     let meuGrafico = null;
-    let bancoDadosRemoto = { historicoDias: {}, configGeral: { dosePadrao: 10, fatorSubtle: 0.8 } };
+    let bancoDadosRemoto = { historicoDias: {} };
     let temporizadorSalvamento = null;
     let carregandoRemoto = false;
 
     let reposicoesExtrasPorData = {};
     let overridesAutomáticosPorData = {};
+    let pacientesCacheGlobal = [];
+    let tooltipDetalhesCache = {};
 
     window.onload = function() {
         const hojeStr = obterDataAtualStr();
         document.getElementById('dataInsercao').value = hojeStr;
         document.getElementById('filtroData').value = hojeStr;
+        
+        const doseSalva = localStorage.getItem('dosePadraoLoteConfig');
+        if (doseSalva) document.getElementById('dosePadraoLote').value = doseSalva;
+
+        const fatorSalvo = localStorage.getItem('fatorSubtleConfig');
+        if (fatorSalvo) document.getElementById('fatorSubtle').value = fatorSalvo;
+
+        const radioSalvo = localStorage.getItem('radiofarmacoConfig');
+        if (radioSalvo) {
+            document.getElementById('radiofarmaco').value = radioSalvo;
+            aoMudarRadiofarmaco();
+        }
+
+        const meiaCustomSalva = localStorage.getItem('meiaVidaCustomConfig');
+        if (meiaCustomSalva) document.getElementById('meiaVidaCustom').value = meiaCustomSalva;
 
         carregarDadosNuvemInicial();
+        atualizarInfoFator();
         setInterval(carregarDadosNuvemBackground, 15000);
 
         const inputHora = document.getElementById('inputHoraRapida');
@@ -321,6 +351,13 @@
         aoDigitarPacientes();
     }
 
+    function aoMudarRadiofarmaco() {
+        const sel = document.getElementById('radiofarmaco').value;
+        const boxCustom = document.getElementById('boxMeiaVidaCustom');
+        boxCustom.style.display = (sel === 'custom') ? 'block' : 'none';
+        processarSimulacaoCompleta();
+    }
+
     function atualizarInfoFator() {
         const valFator = parseFloat(document.getElementById('fatorSubtle').value);
         const divInfo = document.getElementById('infoFatorTexto');
@@ -344,21 +381,23 @@
         }
     }
 
-    async function salvarConfiguracoesPadrao() {
-        const valDose = parseFloat(document.getElementById('dosePadraoLote').value);
-        const valFator = parseFloat(document.getElementById('fatorSubtle').value);
+    function salvarConfiguracoesPadrao() {
+        const valDose = document.getElementById('dosePadraoLote').value;
+        const valFator = document.getElementById('fatorSubtle').value;
+        const valRadio = document.getElementById('radiofarmaco').value;
+        const valMeiaCustom = document.getElementById('meiaVidaCustom').value;
 
-        if (!valDose || isNaN(valDose) || valDose <= 0 || !valFator || isNaN(valFator)) {
-            alert("Insira valores válidos para a dose padrão e o fator.");
+        if (!valDose || isNaN(valDose) || parseFloat(valDose) <= 0) {
+            alert("Insira um valor válido para a dose padrão.");
             return;
         }
 
-        if (!bancoDadosRemoto.configGeral) bancoDadosRemoto.configGeral = {};
-        bancoDadosRemoto.configGeral.dosePadrao = valDose;
-        bancoDadosRemoto.configGeral.fatorSubtle = valFator;
+        localStorage.setItem('dosePadraoLoteConfig', valDose);
+        localStorage.setItem('fatorSubtleConfig', valFator);
+        localStorage.setItem('radiofarmacoConfig', valRadio);
+        localStorage.setItem('meiaVidaCustomConfig', valMeiaCustom);
 
-        await salvarDadosNuvem();
-        alert(`Configuração padrão salva na nuvem com sucesso!\nDose: ${valDose} mCi | Fator: ${valFator}`);
+        alert("Configurações padrão salvas com sucesso!");
         processarSimulacaoCompleta();
     }
 
@@ -368,7 +407,11 @@
     }
 
     function obterMeiaVidaMinutos() {
-        return parseFloat(document.getElementById('radiofarmaco').value);
+        const sel = document.getElementById('radiofarmaco').value;
+        if (sel === 'custom') {
+            return parseFloat(document.getElementById('meiaVidaCustom').value) || 109.8;
+        }
+        return parseFloat(sel);
     }
 
     function converterHoraParaMinutos(strHora) {
@@ -400,27 +443,28 @@
     function carregarDadosPorData() {
         carregandoRemoto = true;
         const dataSelecionada = document.getElementById('filtroData').value;
-        
-        // Carrega configurações gerais da nuvem se existirem
-        if (bancoDadosRemoto.configGeral) {
-            if (bancoDadosRemoto.configGeral.dosePadrao !== undefined) {
-                document.getElementById('dosePadraoLote').value = bancoDadosRemoto.configGeral.dosePadrao;
-            }
-            if (bancoDadosRemoto.configGeral.fatorSubtle !== undefined) {
-                document.getElementById('fatorSubtle').value = bancoDadosRemoto.configGeral.fatorSubtle;
-            }
-        }
-
         if (bancoDadosRemoto.historicoDias && bancoDadosRemoto.historicoDias[dataSelecionada]) {
-            document.getElementById('listaPacientes').value = bancoDadosRemoto.historicoDias[dataSelecionada].textoPacientes || "";
-            reposicoesExtrasPorData[dataSelecionada] = bancoDadosRemoto.historicoDias[dataSelecionada].reposicoesExtras || [];
-            overridesAutomáticosPorData[dataSelecionada] = bancoDadosRemoto.historicoDias[dataSelecionada].overridesAuto || {};
+            let dadosDia = bancoDadosRemoto.historicoDias[dataSelecionada];
+            document.getElementById('listaPacientes').value = dadosDia.textoPacientes || "";
+            reposicoesExtrasPorData[dataSelecionada] = dadosDia.reposicoesExtras || [];
+            overridesAutomáticosPorData[dataSelecionada] = dadosDia.overridesAuto || {};
+            
+            if (dadosDia.radiofarmaco) {
+                document.getElementById('radiofarmaco').value = dadosDia.radiofarmaco;
+                aoMudarRadiofarmaco();
+            }
+            if (dadosDia.fatorSubtle) {
+                document.getElementById('fatorSubtle').value = dadosDia.fatorSubtle;
+                atualizarInfoFator();
+            }
+            if (dadosDia.meiaVidaCustom) {
+                document.getElementById('meiaVidaCustom').value = dadosDia.meiaVidaCustom;
+            }
         } else {
             document.getElementById('listaPacientes').value = "";
             reposicoesExtrasPorData[dataSelecionada] = [];
             overridesAutomáticosPorData[dataSelecionada] = {};
         }
-        atualizarInfoFator();
         processarSimulacaoCompleta();
         carregandoRemoto = false;
     }
@@ -433,8 +477,7 @@
             let overridesAuto = overridesAutomáticosPorData[dataAtual] || {};
 
             const a0Inicial = parseFloat(document.getElementById('dosePadraoLote').value) || 10;
-            const tetoMaximo = a0Inicial * 2;
-            document.getElementById('tituloGraficoTeto').innerText = `Curva do Decaimento e Reposições (Teto Máx: ${tetoMaximo} mCi)`;
+            document.getElementById('tituloGraficoTeto').innerText = `Curva do Decaimento e Reposições (Lote Padrão: ${a0Inicial} mCi)`;
 
             if (!textoPacientes) {
                 document.getElementById('textoResultadoSimulacao').innerHTML = "Insira os dados dos pacientes acima.";
@@ -473,6 +516,7 @@
 
             if (pacientes.length === 0) return;
             pacientes.sort((a, b) => a.minutos - b.minutos);
+            pacientesCacheGlobal = pacientes;
 
             let minInicioLote = pacientes[0].minutos;
             let estoqueAtual = a0Inicial;
@@ -481,16 +525,20 @@
             let reposicoesAutoSet = new Set();
             reposicoesAutoSet.add(pacientes[0].horaStr);
 
+            tooltipDetalhesCache = {};
+            tooltipDetalhesCache[minInicioLote] = { tipo: 'lote_inicial', estoqueAntes: 0, loteNovo: a0Inicial, estoqueTotal: a0Inicial };
+
             pacientes.forEach((pac, index) => {
                 let deltaT = pac.minutos - ultimoMinutoAvaliado;
                 if (deltaT > 0) {
                     estoqueAtual = estoqueAtual * Math.exp(-lambda * deltaT);
                 }
+                let estoqueAntesReposicao = estoqueAtual;
                 ultimoMinutoAvaliado = pac.minutos;
 
                 if (reposicoesManuaisArr.includes(pac.horaStr)) {
-                    estoqueAtual += a0Inicial;
-                    if (estoqueAtual > tetoMaximo) estoqueAtual = tetoMaximo;
+                    estoqueAtual += a0Inicial; 
+                    tooltipDetalhesCache[pac.minutos] = { tipo: 'extra', estoqueAntes: estoqueAntesReposicao, loteNovo: a0Inicial, estoqueTotal: estoqueAtual };
                 }
 
                 if (index === 0) {
@@ -500,7 +548,7 @@
                     reposicoesAutoSet.add(horarioAlvo);
                     
                     estoqueAtual += a0Inicial; 
-                    if (estoqueAtual > tetoMaximo) estoqueAtual = tetoMaximo;
+                    tooltipDetalhesCache[pac.minutos] = { tipo: 'auto', estoqueAntes: estoqueAntesReposicao, loteNovo: a0Inicial, estoqueTotal: estoqueAtual };
                 }
                 estoqueAtual -= pac.doseNecessaria;
                 if (estoqueAtual < 0) estoqueAtual = 0;
@@ -550,17 +598,46 @@
             if (economiaDia < 0) economiaDia = 0;
 
             document.getElementById('textoResultadoSimulacao').innerHTML = `
-                Simulação concluída! (Fator: <strong>${subtle}</strong> | Lote: <strong>${a0Inicial} mCi</strong>)<br>
-                <strong>Pedidos:</strong> ${totalQtdPedidos} | <strong>Economia do dia:</strong> ${economiaDia}
+                Simulação concluída! (Isótopo T½: <strong>${meiaVidaMin} min</strong> | Lote Padrão: <strong>${a0Inicial} mCi</strong>)<br>
+                <strong>Pedidos:</strong> ${totalQtdPedidos} | <strong>Economia:</strong> ${economiaDia}
             `;
 
-            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, tetoMaximo, lambda);
+            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, lambda);
         } catch (e) {
             console.error(e);
         }
     }
 
-    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, tetoMaximo, lambda) {
+    const verticalLinePlugin = {
+        id: 'verticalLinePlugin',
+        afterDraw: (chart) => {
+            const ctx = chart.ctx;
+            const xAxis = chart.scales.x;
+            const yAxis = chart.scales.y;
+            
+            const dataset = chart.data.datasets[2]; // Dataset de Doses Automáticas (bolas azuis)
+            if (!dataset) return;
+
+            dataset.data.forEach(point => {
+                if (point && point.y !== null && point.y !== undefined) {
+                    const xCoord = xAxis.getPixelForValue(point.x);
+                    const yCoord = yAxis.getPixelForValue(point.y);
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(xCoord, yAxis.bottom);
+                    ctx.lineTo(xCoord, yCoord);
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+        }
+    };
+
+    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, lambda) {
         let fimSimulacao = minInicio + 420; 
         
         let minutosUnicos = new Set();
@@ -582,35 +659,33 @@
         let minutosAuto = reposicoesAutoArr.map(h => converterHoraParaMinutos(h));
         let minutosExtras = reposicoesManuaisArr.map(h => converterHoraParaMinutos(h));
 
+        let estoqueGrafico = a0Inicial;
+        let ultimoMinutoGrafico = minInicio;
+        let maxAtivGrafico = a0Inicial;
+
         minutosArray.forEach(m => {
-            let ativ = 0;
-            if (m >= minInicio) {
-                ativ += a0Inicial * Math.exp(-lambda * (m - minInicio));
+            let dt = m - ultimoMinutoGrafico;
+            if (dt > 0) {
+                estoqueGrafico = estoqueGrafico * Math.exp(-lambda * dt);
+                ultimoMinutoGrafico = m;
             }
-            pedidosHorarios.forEach(horarioPedido => {
-                let minP = converterHoraParaMinutos(horarioPedido);
-                if (minP !== minInicio && m >= minP) {
-                    ativ += a0Inicial * Math.exp(-lambda * (m - minP));
-                }
-            });
 
-            pacientes.forEach(pac => {
-                if (m > pac.minutos) {
-                    ativ -= pac.doseNecessaria * Math.exp(-lambda * (m - pac.minutos));
-                }
-            });
+            let horarioStr = minutosParaHoraStr(m);
+            if (pedidosHorarios.includes(horarioStr) && m !== minInicio) {
+                estoqueGrafico += a0Inicial; 
+            }
 
-            if (ativ > tetoMaximo) ativ = tetoMaximo;
-            let ativPrePaciente = ativ > 0 ? parseFloat(ativ.toFixed(2)) : 0;
+            if (estoqueGrafico > maxAtivGrafico) maxAtivGrafico = estoqueGrafico;
 
-            pacientes.forEach(pac => {
-                if (m === pac.minutos) {
-                    ativ -= pac.doseNecessaria;
-                }
-            });
+            let ativPrePaciente = estoqueGrafico > 0 ? parseFloat(estoqueGrafico.toFixed(2)) : 0;
 
-            if (ativ < 0) ativ = 0;
-            let valorAtiv = ativ > 0 ? parseFloat(ativ.toFixed(2)) : 0;
+            let pacNesteMinuto = pacientes.find(p => p.minutos === m);
+            if (pacNesteMinuto) {
+                estoqueGrafico -= pacNesteMinuto.doseNecessaria;
+                if (estoqueGrafico < 0) estoqueGrafico = 0;
+            }
+
+            let valorAtiv = estoqueGrafico > 0 ? parseFloat(estoqueGrafico.toFixed(2)) : 0;
 
             dadosCurva.push({ x: m, y: valorAtiv });
 
@@ -622,15 +697,15 @@
                 dadosAtividadePre.push(null);
             }
 
-            let deslocamentoPonto = a0Inicial * 0.15;
             if (minutosAuto.includes(m)) {
-                dadosDosesAutoAcima.push({ x: m, y: valorAtiv + deslocamentoPonto });
+                let valAutoPonto = (m === minInicio) ? a0Inicial : (ativPrePaciente);
+                dadosDosesAutoAcima.push({ x: m, y: valAutoPonto });
             } else {
                 dadosDosesAutoAcima.push({ x: m, y: null });
             }
 
             if (minutosExtras.includes(m)) {
-                dadosDosesExtrasAcima.push({ x: m, y: valorAtiv + deslocamentoPonto });
+                dadosDosesExtrasAcima.push({ x: m, y: ativPrePaciente });
             } else {
                 dadosDosesExtrasAcima.push({ x: m, y: null });
             }
@@ -653,7 +728,7 @@
                         fill: true,
                         tension: 0.2,
                         pointRadius: 0,
-                        pointHoverRadius: 0
+                        pointHoverRadius: 10
                     },
                     {
                         label: 'Pacientes',
@@ -663,7 +738,7 @@
                         pointBackgroundColor: '#ef4444',
                         pointBorderColor: '#ef4444',
                         pointRadius: 7,
-                        pointHoverRadius: 9,
+                        pointHoverRadius: 11,
                         showLine: false
                     },
                     {
@@ -675,7 +750,7 @@
                         pointBorderColor: '#ffffff',
                         pointBorderWidth: 1.5,
                         pointRadius: 7,
-                        pointHoverRadius: 9,
+                        pointHoverRadius: 11,
                         showLine: false
                     },
                     {
@@ -687,54 +762,66 @@
                         pointBorderColor: '#ffffff',
                         pointBorderWidth: 1.5,
                         pointRadius: 7,
-                        pointHoverRadius: 9,
+                        pointHoverRadius: 11,
                         showLine: false
                     }
                 ]
             },
+            plugins: [verticalLinePlugin],
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     tooltip: {
+                        intersect: false,
+                        mode: 'nearest',
                         callbacks: {
                             title: function(context) {
                                 let minutosTotais = context[0].parsed.x;
                                 return minutosParaHoraStr(minutosTotais);
                             },
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label === 'Pacientes') label = 'Atividade Restante A(t)';
-                                if (label) {
-                                    label += ': ';
+                                let datasetIndex = context.datasetIndex;
+                                let minutosTotais = context.parsed.x;
+
+                                if (datasetIndex === 0) {
+                                    return `Resíduo no Frasco: ${context.parsed.y.toFixed(2).replace('.', ',')} mCi`;
                                 }
-                                if (context.parsed.y !== null) {
-                                    let val = context.parsed.y;
-                                    if (context.datasetIndex === 2 || context.datasetIndex === 3) {
-                                        val -= (a0Inicial * 0.15);
-                                    }
-                                    if (val < 0) val = 0;
-                                    label += val.toFixed(2).replace('.', ',') + ' mCi';
-                                }
-                                
-                                const index = context.dataIndex;
-                                const dataset0 = context.chart.data.datasets[0];
-                                if (context.datasetIndex === 1) { 
-                                    const ativPre = dataset0.atividadePrePaciente[index];
-                                    if (ativPre !== undefined && ativPre !== null) {
-                                        let minutosTotais = context.parsed.x;
-                                        let h = Math.floor(minutosTotais / 60);
-                                        let m = minutosTotais % 60;
-                                        let minAnt = m - 1 < 0 ? 59 : m - 1;
-                                        let hAnt = m - 1 < 0 ? (h - 1 + 24) % 24 : h;
-                                        let hFormat = `${String(hAnt).padStart(2, '0')}:${String(minAnt).padStart(2, '0')}`;
+                                if (datasetIndex === 1) {
+                                    let pac = pacientesCacheGlobal.find(p => p.minutos === minutosTotais);
+                                    if (pac) {
                                         return [
-                                            label,
-                                            `Pré-Aplicação (${hFormat}:59): ${ativPre.toFixed(2).replace('.', ',')} mCi`
+                                            `Paciente (${pac.peso} kg)`,
+                                            `Dose Injetada: ${pac.doseNecessaria.toFixed(2).replace('.', ',')} mCi`,
+                                            `Sobra no Frasco: ${context.parsed.y.toFixed(2).replace('.', ',')} mCi`
                                         ];
                                     }
                                 }
-                                return label;
+                                if (datasetIndex === 2) {
+                                    let detalhe = tooltipDetalhesCache[minutosTotais];
+                                    if (detalhe && detalhe.tipo !== 'lote_inicial') {
+                                        return [
+                                            `Reposição Automática de Lote`,
+                                            `Resíduo Anterior: ${detalhe.estoqueAntes.toFixed(2).replace('.', ',')} mCi`,
+                                            `Lote Novo Adicionado: +${detalhe.loteNovo.toFixed(2).replace('.', ',')} mCi`,
+                                            `Estoque Total com Inclusão: ${detalhe.estoqueTotal.toFixed(2).replace('.', ',')} mCi`
+                                        ];
+                                    }
+                                    return `Lote Inicial: ${a0Inicial.toFixed(2).replace('.', ',')} mCi`;
+                                }
+                                if (datasetIndex === 3) {
+                                    let detalhe = tooltipDetalhesCache[minutosTotais];
+                                    if (detalhe) {
+                                        return [
+                                            `Reposição Extra Manual`,
+                                            `Resíduo Anterior: ${detalhe.estoqueAntes.toFixed(2).replace('.', ',')} mCi`,
+                                            `Lote Novo Adicionado: +${detalhe.loteNovo.toFixed(2).replace('.', ',')} mCi`,
+                                            `Estoque Total com Inclusão: ${detalhe.estoqueTotal.toFixed(2).replace('.', ',')} mCi`
+                                        ];
+                                    }
+                                    return `Reposição Extra Manuscrita (${a0Inicial} mCi)`;
+                                }
+                                return `Atividade Restante: ${context.parsed.y.toFixed(2).replace('.', ',')} mCi`;
                             }
                         }
                     }
@@ -752,7 +839,7 @@
                         let horarioClicado = minutosParaHoraStr(minutosClicados);
 
                         if (datasetIndex === 2) { 
-                            let escolhaAuto = prompt(`🔵 Dose Automática às ${horarioClicado}.\n\nDeseja alterar o horário desta dose de reposição?\nDigite o NOVO HORÁRIO (HH:MM):`, horarioClicado);
+                            let escolhaAuto = prompt(`🔵 Dose Automática às ${horarioClicado}.\nDeseja alterar o horário desta dose de reposição?\nDigite o NOVO HORÁRIO (HH:MM):`, horarioClicado);
                             if (escolhaAuto !== null && escolhaAuto.includes(':')) {
                                 let pacAlvo = pacientes.find(p => p.horaStr === horarioClicado) || pacientes[0];
                                 if (pacAlvo) {
@@ -764,7 +851,7 @@
                         }
 
                         if (datasetIndex === 3) { 
-                            let escolhaDose = prompt(`🟠 Dose Extra às ${horarioClicado}.\n\nDigite:\n1 - Alterar Horário\n2 - Remover Dose Extra`, "1");
+                            let escolhaDose = prompt(`🟠 Dose Extra às ${horarioClicado}.\nDigite:\n1 - Alterar Horário\n2 - Remover Dose Extra`, "1");
                             if (escolhaDose === "1") {
                                 let novoH = prompt("Digite o NOVO HORÁRIO (HH:MM):", horarioClicado);
                                 if (novoH !== null && novoH.includes(':')) {
@@ -783,7 +870,7 @@
 
                         let pacEncontrado = pacientes.find(p => p.minutos === minutosClicados);
                         if (pacEncontrado) {
-                            let escolha = prompt(`🔴 Paciente às ${pacEncontrado.horaStr} (${pacEncontrado.peso} kg).\n\nDigite:\n1 - Alterar Horário / Peso\n2 - Remover Paciente`, "1");
+                            let escolha = prompt(`🔴 Paciente às ${pacEncontrado.horaStr} (${pacEncontrado.peso} kg).\nDigite:\n1 - Alterar Horário / Peso\n2 - Remover Paciente`, "1");
                             if (escolha === "1") {
                                 let novoH = prompt("Digite o NOVO HORÁRIO (HH:MM):", pacEncontrado.horaStr);
                                 if (novoH !== null && novoH.includes(':')) {
@@ -814,7 +901,7 @@
                         let minutosArredondados = Math.round(dataX / 5) * 5;
                         let horarioSugerido = minutosParaHoraStr(minutosArredondados);
 
-                        let tipoAdd = prompt(`O que deseja adicionar às ${horarioSugerido}?\n\nDigite:\n1 - Paciente\n2 - Dose Extra (${a0Inicial} mCi)`, "1");
+                        let tipoAdd = prompt(`O que deseja adicionar às ${horarioSugerido}?\nDigite:\n1 - Paciente\n2 - Dose Extra (${a0Inicial} mCi)`, "1");
 
                         if (tipoAdd === "1") {
                             let horaPac = prompt("Digite o Horário do Paciente (HH:MM):", horarioSugerido);
@@ -837,7 +924,7 @@
                 scales: {
                     y: { 
                         beginAtZero: true, 
-                        max: tetoMaximo * 1.15, 
+                        max: maxAtivGrafico * 1.25, 
                         title: { display: true, text: 'Atividade (mCi)' } 
                     },
                     x: { 
@@ -845,9 +932,7 @@
                         position: 'bottom',
                         title: { display: true, text: 'Horário Proporcional (🔴 Pacientes | 🔵 Doses Auto | 🟠 Doses Extras)' },
                         ticks: {
-                            callback: function(value) {
-                                return minutosParaHoraStr(value);
-                            },
+                            callback: function(value) { return minutosParaHoraStr(value); },
                             stepSize: 30
                         }
                     }
@@ -873,15 +958,12 @@
         try {
             document.getElementById('sync-status').innerText = "(Carregando...)";
             const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 
-                    'X-Master-Key': API_KEY
-                }
+                headers: { 'X-Master-Key': API_KEY }
             });
             if (!resposta.ok) throw new Error('Erro no carregamento remoto');
             const resultado = await resposta.json();
             bancoDadosRemoto = resultado.record || resultado;
             if (!bancoDadosRemoto.historicoDias) bancoDadosRemoto.historicoDias = {};
-            if (!bancoDadosRemoto.configGeral) bancoDadosRemoto.configGeral = { dosePadrao: 10, fatorSubtle: 0.8 };
 
             limparHistoricoAntigo();
             carregarDadosPorData();
@@ -896,9 +978,7 @@
     async function carregarDadosNuvemBackground() {
         try {
             const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 
-                    'X-Master-Key': API_KEY
-                }
+                headers: { 'X-Master-Key': API_KEY }
             });
             if (!resposta.ok) return;
             const resultado = await resposta.json();
@@ -906,17 +986,6 @@
             if (dadosRemotos && dadosRemotos.historicoDias) {
                 bancoDadosRemoto = dadosRemotos;
                 calcularEstatisticasGlobais();
-                const dataSelecionada = document.getElementById('filtroData').value;
-                if (dataSelecionada === obterDataAtualStr()) {
-                    let textoAtualRemoto = (bancoDadosRemoto.historicoDias[dataSelecionada] || {}).textoPacientes || "";
-                    let textoLocal = document.getElementById('listaPacientes').value;
-                    if (textoAtualRemoto !== textoLocal && document.activeElement !== document.getElementById('listaPacientes')) {
-                        carregandoRemoto = true;
-                        document.getElementById('listaPacientes').value = textoAtualRemoto;
-                        processarSimulacaoCompleta();
-                        carregandoRemoto = false;
-                    }
-                }
             }
         } catch (e) {}
     }
@@ -933,6 +1002,9 @@
 
             bancoDadosRemoto.historicoDias[dataInsercao] = {
                 textoPacientes: textoPacientes,
+                radiofarmaco: document.getElementById('radiofarmaco').value,
+                fatorSubtle: document.getElementById('fatorSubtle').value,
+                meiaVidaCustom: document.getElementById('meiaVidaCustom').value,
                 reposicoesExtras: reposicoesExtrasAtuais,
                 overridesAuto: overridesAtuais,
                 atualizadoEm: new Date().toISOString()
@@ -987,9 +1059,6 @@
                 let linhas = diaObj.textoPacientes.trim().split('\n');
                 let pacientesTemp = [];
                 
-                let fatorGlobal = (bancoDadosRemoto.configGeral && bancoDadosRemoto.configGeral.fatorSubtle) ? bancoDadosRemoto.configGeral.fatorSubtle : 0.8;
-                let doseGlobal = (bancoDadosRemoto.configGeral && bancoDadosRemoto.configGeral.dosePadrao) ? bancoDadosRemoto.configGeral.dosePadrao : 10;
-
                 linhas.forEach(l => {
                     let linhaLimpa = l.trim();
                     if (linhaLimpa) {
@@ -998,7 +1067,7 @@
                             let hStr = partes[0].trim();
                             let pVal = parseFloat(partes[1].trim());
                             if (!isNaN(pVal)) {
-                                pacientesTemp.push({ min: converterHoraParaMinutos(hStr), dose: pVal * 0.1 * fatorGlobal, hStr });
+                                pacientesTemp.push({ min: converterHoraParaMinutos(hStr), dose: pVal * 0.1 * 0.8, hStr });
                             }
                         }
                     }
@@ -1006,31 +1075,30 @@
 
                 if (pacientesTemp.length > 0) {
                     pacientesTemp.sort((a, b) => a.min - b.min);
-                    let a0Inicial = doseGlobal;
+                    let a0Inicial = 10;
                     let est = a0Inicial;
                     let ultMin = pacientesTemp[0].min;
                     let qtdAuto = 1;
 
                     let repsExtrasDia = diaObj.reposicoesExtras || [];
                     let repsMin = repsExtrasDia.map(h => converterHoraParaMinutos(h));
-                    let tetoMaximo = a0Inicial * 2;
+                    let mvDia = parseFloat(diaObj.radiofarmaco) || 109.8;
+                    let lambdaDia = 0.693 / mvDia;
 
                     pacientesTemp.forEach((p, idx) => {
                         let dt = p.min - ultMin;
-                        if (dt > 0) est = est * Math.exp(- (0.693 / 109.8) * dt);
+                        if (dt > 0) est = est * Math.exp(-lambdaDia * dt);
                         ultMin = p.min;
 
                         repsMin.forEach(rm => {
                             if (rm === p.min) {
                                 est += a0Inicial;
-                                if (est > tetoMaximo) est = tetoMaximo;
                             }
                         });
 
                         if (idx > 0 && est < p.dose) {
                             qtdAuto++;
                             est += a0Inicial;
-                            if (est > tetoMaximo) est = tetoMaximo;
                         }
                         est -= p.dose;
                         if (est < 0) est = 0;
@@ -1052,8 +1120,7 @@
                         <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #cbd5e1;">
                             <strong>Data: ${dataFormatada}</strong><br>
                             - Total de pacientes: ${qtdPac}<br>
-                            - Quantidade de Doses Automáticas: <strong>${qtdAuto}</strong><br>
-                            - Quantidade de Doses Extras (Manuais): <strong>${qtdExtras}</strong><br>
+                            - Doses Automáticas: <strong>${qtdAuto}</strong> | Extras: <strong>${qtdExtras}</strong><br>
                             - Economia do dia: ${econDia} doses
                         </div>
                     `;
@@ -1070,7 +1137,7 @@
         let confirmacao = prompt("ATENÇÃO: Esta ação apagará todo o histórico da nuvem!\n\nPara confirmar, digite exatamente a palavra: ZERAR");
         
         if (confirmacao !== null && confirmacao.trim().toUpperCase() === "ZERAR") {
-            bancoDadosRemoto = { historicoDias: {}, configGeral: { dosePadrao: 10, fatorSubtle: 0.8 } };
+            bancoDadosRemoto = { historicoDias: {} };
             reposicoesExtrasPorData = {};
             overridesAutomáticosPorData = {};
             await salvarDadosNuvem();
