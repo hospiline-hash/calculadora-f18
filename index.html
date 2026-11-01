@@ -114,6 +114,25 @@
             margin-top: 5px;
         }
 
+        /* [CORREÇÃO 9] Estilo do dialog customizado */
+        dialog#modalDialogo {
+            border: none;
+            border-radius: 10px;
+            padding: 0;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        dialog#modalDialogo::backdrop {
+            background: rgba(15, 23, 42, 0.55);
+        }
+        .dialog-content { padding: 22px; }
+        .dialog-title { font-size: 16px; font-weight: 700; margin: 0 0 10px 0; color: #1e293b; }
+        .dialog-msg { font-size: 13px; color: #475569; margin-bottom: 14px; white-space: pre-line; }
+        .dialog-input { margin-bottom: 12px; }
+        .dialog-buttons { display: flex; gap: 8px; justify-content: flex-end; }
+        .dialog-buttons button { width: auto; margin-top: 0; padding: 8px 16px; }
+
         @media print {
             body { background: white; padding: 0; color: #000; }
             .card:not(.stats), button, .historico-box, .header, .chart-container, .footer-copyright { display: none !important; }
@@ -144,6 +163,19 @@
     </style>
 </head>
 <body>
+
+<!-- [CORREÇÃO 9] Dialog único reutilizável -->
+<dialog id="modalDialogo">
+    <div class="dialog-content">
+        <h3 class="dialog-title" id="dialogTitulo">Confirmação</h3>
+        <div class="dialog-msg" id="dialogMensagem"></div>
+        <div id="dialogInputs"></div>
+        <div class="dialog-buttons">
+            <button type="button" id="dialogBtnCancelar" style="background:#94a3b8;">Cancelar</button>
+            <button type="button" id="dialogBtnOk" class="btn-success">OK</button>
+        </div>
+    </div>
+</dialog>
 
 <div class="print-logo">
     <img src="logo.png" alt="Logo Hospiline">
@@ -180,7 +212,7 @@
             </div>
             <div id="boxMeiaVidaCustom" style="display: none;">
                 <label for="meiaVidaCustom">Meia-Vida Custom (min):</label>
-                <input type="number" id="meiaVidaCustom" value="109.8" step="0.1" oninput="aoDigitarPacientes()">
+                <input type="number" id="meiaVidaCustom" value="109.8" step="0.1" min="0.1" oninput="aoDigitarPacientes()">
             </div>
             <div>
                 <label for="fatorSubtle">Fator de Redução (Subtle AI):</label>
@@ -238,15 +270,17 @@
 
     <textarea id="listaPedido" rows="6" readonly style="background: #f8fafc; font-family: monospace; margin-top: 10px;" placeholder="A lista de horários aparecerá aqui..."></textarea>
     <button class="btn-warning" onclick="baixarTxtPedido()">Baixar Lista em TXT</button>
+    <!-- [CORREÇÃO 10] Botão separado de impressão do pedido -->
+    <button class="btn-warning" onclick="imprimirPedido()" style="background:#0ea5e9;">Imprimir Apenas o Pedido</button>
 </div>
 
 <div class="card stats">
     <h3>Relatório Consolidado (Nuvem) <span id="sync-status" class="loading">Carregando dados...</span></h3>
-    <p><strong>Total de Pacientes Atendidos (7 dias):</strong> <span id="stat-total">0</span></p>
+    <p><strong>Total de Pacientes Atendidos (30 dias):</strong> <span id="stat-total">0</span></p>
     <p><strong>Doses Economizadas (Estimativa):</strong> <span id="stat-economia">0</span></p>
     
     <div id="detalhes-diarios-print">
-        <h4 style="color: #065f46; margin-bottom: 10px;">Detalhamento Diário (Últimos 7 Dias):</h4>
+        <h4 style="color: #065f46; margin-bottom: 10px;">Detalhamento Diário (Últimos 30 Dias):</h4>
         <div id="lista-detalhes-print"></div>
     </div>
     
@@ -255,10 +289,11 @@
 </div>
 
 <div class="footer-copyright">
-    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.0
+    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.1
 </div>
 
 <script>
+    // [CORREÇÃO] Bloqueio de atalhos mantido (segurança por obscuridade — NÃO substitui backend)
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     document.addEventListener('keydown', function(e) {
         if (
@@ -274,15 +309,83 @@
 
     const BIN_ID = "6abe5e5effd5d1605342b486";
     const API_KEY = "$2a$10$NipvyBy7s7OM50qZMajLN.04okYLf7FrONhthX.4awurbixP9ye3S";
-    let meuGrafico = null;
-    let bancoDadosRemoto = { historicoDias: {} };
-    let temporizadorSalvamento = null;
-    let carregandoRemoto = false;
+    const DIAS_HISTORICO = 30; // [CORREÇÃO 4] Antes 7, agora 30 dias
 
-    let reposicoesExtrasPorData = {};
-    let overridesAutomáticosPorData = {};
-    let pacientesCacheGlobal = [];
-    let tooltipDetalhesCache = {};
+    // [CORREÇÃO 8] Estado global consolidado
+    const estado = {
+        banco: { historicoDias: {} },
+        cache: {
+            reposicoesExtras: {},   // data -> [HH:MM, ...]
+            overridesAuto: {}       // data -> { "HH:MM_original": "HH:MM_novo" }
+        },
+        pacientes: [],
+        tooltips: {},
+        salvando: false,
+        filaSalvamento: false,
+        carregandoRemoto: false
+    };
+
+    let meuGrafico = null;
+    let temporizadorSalvamento = null;
+
+    // [CORREÇÃO 9] Helpers de dialog
+    function abrirDialogo({ titulo, mensagem, inputs = [], botoes = null }) {
+        return new Promise((resolve) => {
+            const dlg = document.getElementById('modalDialogo');
+            document.getElementById('dialogTitulo').innerText = titulo || 'Confirmação';
+            document.getElementById('dialogMensagem').innerText = mensagem || '';
+            const container = document.getElementById('dialogInputs');
+            container.innerHTML = '';
+            inputs.forEach((inp, i) => {
+                const div = document.createElement('div');
+                div.className = 'dialog-input';
+                if (inp.label) {
+                    const lbl = document.createElement('label');
+                    lbl.innerText = inp.label;
+                    div.appendChild(lbl);
+                }
+                const el = document.createElement('input');
+                el.type = inp.type || 'text';
+                el.value = inp.value ?? '';
+                if (inp.placeholder) el.placeholder = inp.placeholder;
+                el.id = `dialogInput_${i}`;
+                div.appendChild(el);
+                container.appendChild(div);
+            });
+
+            const btnOk = document.getElementById('dialogBtnOk');
+            const btnCancel = document.getElementById('dialogBtnCancelar');
+
+            const cleanup = () => {
+                btnOk.onclick = null;
+                btnCancel.onclick = null;
+                dlg.onclose = null;
+            };
+
+            btnOk.onclick = () => {
+                const valores = inputs.map((_, i) => document.getElementById(`dialogInput_${i}`).value);
+                cleanup();
+                dlg.close();
+                resolve({ confirmado: true, valores });
+            };
+            btnCancel.onclick = () => {
+                cleanup();
+                dlg.close();
+                resolve({ confirmado: false, valores: [] });
+            };
+            dlg.onclose = () => {
+                // Se fechou por ESC
+                cleanup();
+                resolve({ confirmado: false, valores: [] });
+            };
+
+            dlg.showModal();
+            if (inputs.length > 0) {
+                const primeiro = document.getElementById('dialogInput_0');
+                if (primeiro) primeiro.focus();
+            }
+        });
+    }
 
     window.onload = function() {
         const hojeStr = obterDataAtualStr();
@@ -411,29 +514,64 @@
     function obterMeiaVidaMinutos() {
         const sel = document.getElementById('radiofarmaco').value;
         if (sel === 'custom') {
-            return parseFloat(document.getElementById('meiaVidaCustom').value) || 109.8;
+            const v = parseFloat(document.getElementById('meiaVidaCustom').value);
+            // [CORREÇÃO 11] Validação: meia-vida deve ser > 0
+            if (!v || v <= 0 || isNaN(v)) return 109.8;
+            return v;
         }
         return parseFloat(sel);
     }
 
+    // [CORREÇÃO 1] Validação robusta de horário
     function converterHoraParaMinutos(strHora) {
-        const partes = strHora.trim().split(':');
-        return parseInt(partes[0]) * 60 + parseInt(partes[1]);
+        if (typeof strHora !== 'string') return null;
+        const limpo = strHora.trim();
+        if (!/^\d{1,2}:\d{2}$/.test(limpo)) return null;
+        const partes = limpo.split(':');
+        const h = parseInt(partes[0], 10);
+        const m = parseInt(partes[1], 10);
+        if (isNaN(h) || isNaN(m) || m < 0 || m > 59 || h < 0 || h > 47) return null;
+        return h * 60 + m;
     }
 
+    // [CORREÇÃO 13] Trata > 24h
     function minutosParaHoraStr(minutosTotais) {
         let h = Math.floor(minutosTotais / 60);
         let m = minutosTotais % 60;
+        if (h >= 24) {
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} (+1d)`;
+        }
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
 
-    function aoMudarDataInsercao() {
+    // [CORREÇÃO 2] Parser unificado
+    function parseLinhaPaciente(linha) {
+        const linhaLimpa = linha.trim();
+        if (!linhaLimpa) return null;
+        const partes = linhaLimpa.includes('=') ? linhaLimpa.split('=') : linhaLimpa.split(' ');
+        if (partes.length < 2) return null;
+        const horaBruta = partes[0].trim();
+        const minutos = converterHoraParaMinutos(horaBruta);
+        if (minutos === null) return null;
+        const pesoVal = parseFloat(partes[1].trim());
+        if (isNaN(pesoVal) || pesoVal <= 0) return null;
+        return { minutos, horaStr: minutosParaHoraStr(minutos), peso: pesoVal };
+    }
+
+    // [CORREÇÃO 6] Flush ao trocar data
+    async function aoMudarDataInsercao() {
+        // Se havia salvamento pendente, força flush
+        if (temporizadorSalvamento) {
+            clearTimeout(temporizadorSalvamento);
+            temporizadorSalvamento = null;
+            await salvarDadosNuvem();
+        }
         document.getElementById('filtroData').value = document.getElementById('dataInsercao').value;
         carregarDadosPorData();
     }
 
     function aoDigitarPacientes() {
-        if (carregandoRemoto) return;
+        if (estado.carregandoRemoto) return;
         processarSimulacaoCompleta();
         clearTimeout(temporizadorSalvamento);
         document.getElementById('syncStatus').innerText = "(Digitando...)";
@@ -443,13 +581,13 @@
     }
 
     function carregarDadosPorData() {
-        carregandoRemoto = true;
+        estado.carregandoRemoto = true;
         const dataSelecionada = document.getElementById('filtroData').value;
-        if (bancoDadosRemoto.historicoDias && bancoDadosRemoto.historicoDias[dataSelecionada]) {
-            let dadosDia = bancoDadosRemoto.historicoDias[dataSelecionada];
+        if (estado.banco.historicoDias && estado.banco.historicoDias[dataSelecionada]) {
+            let dadosDia = estado.banco.historicoDias[dataSelecionada];
             document.getElementById('listaPacientes').value = dadosDia.textoPacientes || "";
-            reposicoesExtrasPorData[dataSelecionada] = dadosDia.reposicoesExtras || [];
-            overridesAutomáticosPorData[dataSelecionada] = dadosDia.overridesAuto || {};
+            estado.cache.reposicoesExtras[dataSelecionada] = dadosDia.reposicoesExtras || [];
+            estado.cache.overridesAuto[dataSelecionada] = dadosDia.overridesAuto || {};
             
             if (dadosDia.radiofarmaco) {
                 document.getElementById('radiofarmaco').value = dadosDia.radiofarmaco;
@@ -462,21 +600,25 @@
             if (dadosDia.meiaVidaCustom) {
                 document.getElementById('meiaVidaCustom').value = dadosDia.meiaVidaCustom;
             }
+            // [CORREÇÃO 3] Restaura dosePadraoLote do dia (se existir)
+            if (dadosDia.dosePadraoLote) {
+                document.getElementById('dosePadraoLote').value = dadosDia.dosePadraoLote;
+            }
         } else {
             document.getElementById('listaPacientes').value = "";
-            reposicoesExtrasPorData[dataSelecionada] = [];
-            overridesAutomáticosPorData[dataSelecionada] = {};
+            estado.cache.reposicoesExtras[dataSelecionada] = [];
+            estado.cache.overridesAuto[dataSelecionada] = {};
         }
         processarSimulacaoCompleta();
-        carregandoRemoto = false;
+        estado.carregandoRemoto = false;
     }
 
     function processarSimulacaoCompleta() {
         try {
             const textoPacientes = document.getElementById('listaPacientes').value.trim();
             const dataAtual = document.getElementById('filtroData').value;
-            let reposicoesManuaisArr = reposicoesExtrasPorData[dataAtual] || [];
-            let overridesAuto = overridesAutomáticosPorData[dataAtual] || {};
+            let reposicoesManuaisArr = estado.cache.reposicoesExtras[dataAtual] || [];
+            let overridesAuto = estado.cache.overridesAuto[dataAtual] || {};
 
             const a0Inicial = parseFloat(document.getElementById('dosePadraoLote').value) || 10;
             document.getElementById('tituloGraficoTeto').innerText = `Curva do Decaimento e Reposições (Lote Padrão: ${a0Inicial} mCi)`;
@@ -495,662 +637,26 @@
             const lambda = 0.693 / meiaVidaMin;
             let pacientes = [];
             
+            // [CORREÇÃO 2] Usa parser unificado
             textoPacientes.split('\n').forEach(linha => {
-                let linhaLimpa = linha.trim();
-                if (linhaLimpa) {
-                    let partes = linhaLimpa.includes('=') ? linhaLimpa.split('=') : linhaLimpa.split(' ');
-                    if (partes.length >= 2) {
-                        let horaBruta = partes[0].trim();
-                        let minTotais = converterHoraParaMinutos(horaBruta);
-                        let horaStr = minutosParaHoraStr(minTotais);
-                        let pesoVal = parseFloat(partes[1].trim());
-                        if (!isNaN(pesoVal) && !isNaN(minTotais)) {
-                            pacientes.push({
-                                minutos: minTotais,
-                                horaStr: horaStr,
-                                peso: pesoVal,
-                                doseNecessaria: pesoVal * 0.1 * subtle
-                            });
-                        }
-                    }
+                const p = parseLinhaPaciente(linha);
+                if (p) {
+                    pacientes.push({
+                        ...p,
+                        doseNecessaria: p.peso * 0.1 * subtle
+                    });
                 }
             });
 
             if (pacientes.length === 0) return;
             pacientes.sort((a, b) => a.minutos - b.minutos);
-            pacientesCacheGlobal = pacientes;
+            estado.pacientes = pacientes;
 
-            let minInicioLote = pacientes[0].minutos;
-            let estoqueAtual = a0Inicial;
-            let ultimoMinutoAvaliado = minInicioLote;
-            
-            let reposicoesAutoSet = new Set();
-            reposicoesAutoSet.add(pacientes[0].horaStr);
-
-            tooltipDetalhesCache = {};
-            tooltipDetalhesCache[minInicioLote] = { tipo: 'lote_inicial', estoqueAntes: 0, loteNovo: a0Inicial, estoqueTotal: a0Inicial };
-
-            pacientes.forEach((pac, index) => {
-                let deltaT = pac.minutos - ultimoMinutoAvaliado;
-                if (deltaT > 0) {
-                    estoqueAtual = estoqueAtual * Math.exp(-lambda * deltaT);
+            // [CORREÇÃO 7] Limpa overrides órfãos (que apontam para horários que não existem mais)
+            const horariosPacientes = new Set(pacientes.map(p => p.horaStr));
+            let overridesLimpou = false;
+            Object.keys(overridesAuto).forEach(k => {
+                if (!horariosPacientes.has(k)) {
+                    delete overridesAuto[k];
+                    overridesLimpou = true;
                 }
-                let estoqueAntesReposicao = estoqueAtual;
-                ultimoMinutoAvaliado = pac.minutos;
-
-                if (reposicoesManuaisArr.includes(pac.horaStr)) {
-                    estoqueAtual += a0Inicial; 
-                    tooltipDetalhesCache[pac.minutos] = { tipo: 'extra', estoqueAntes: estoqueAntesReposicao, loteNovo: a0Inicial, estoqueTotal: estoqueAtual };
-                }
-
-                if (index === 0) {
-                    // Primeiro paciente
-                } else if (estoqueAtual < pac.doseNecessaria) {
-                    let horarioAlvo = overridesAuto[pac.horaStr] !== undefined ? overridesAuto[pac.horaStr] : pac.horaStr;
-                    reposicoesAutoSet.add(horarioAlvo);
-                    
-                    estoqueAtual += a0Inicial; 
-                    tooltipDetalhesCache[pac.minutos] = { tipo: 'auto', estoqueAntes: estoqueAntesReposicao, loteNovo: a0Inicial, estoqueTotal: estoqueAtual };
-                }
-                estoqueAtual -= pac.doseNecessaria;
-                if (estoqueAtual < 0) estoqueAtual = 0;
-            });
-
-            let reposicoesAutoArr = Array.from(reposicoesAutoSet);
-            let todasReposicoes = [...reposicoesAutoArr, ...reposicoesManuaisArr];
-            
-            let repositorioUnicoSet = new Set(todasReposicoes);
-            let pedidosReposicao = Array.from(repositorioUnicoSet);
-            pedidosReposicao.sort((a, b) => converterHoraParaMinutos(a) - converterHoraParaMinutos(b));
-
-            let modoHorario = document.getElementById('modoHorarioPedido').value;
-            let textoTxt = "";
-
-            if (modoHorario === "horaEmHora") {
-                let agrupadoPorHora = {};
-                pedidosReposicao.forEach(horarioStr => {
-                    let partes = horarioStr.split(':');
-                    let horaCheia = `${partes[0]}:00`;
-                    
-                    if (!agrupadoPorHora[horaCheia]) {
-                        agrupadoPorHora[horaCheia] = 0;
-                    }
-                    agrupadoPorHora[horaCheia]++;
-                });
-
-                let linhasFormatadas = [];
-                Object.keys(agrupadoPorHora).sort().forEach(h => {
-                    let qtd = agrupadoPorHora[h];
-                    if (qtd > 1) {
-                        linhasFormatadas.push(`${h} (${qtd} doses)`);
-                    } else {
-                        linhasFormatadas.push(h);
-                    }
-                });
-                textoTxt = linhasFormatadas.join('\n');
-            } else {
-                textoTxt = pedidosReposicao.join('\n');
-            }
-
-            document.getElementById('listaPedido').value = textoTxt;
-
-            let totalQtdPedidos = pedidosReposicao.length;
-            let totalPacientesAtual = pacientes.length;
-            let economiaDia = totalPacientesAtual - totalQtdPedidos;
-            if (economiaDia < 0) economiaDia = 0;
-
-            document.getElementById('textoResultadoSimulacao').innerHTML = `
-                Simulação concluída! (Isótopo T½: <strong>${meiaVidaMin} min</strong> | Lote Padrão: <strong>${a0Inicial} mCi</strong>)<br>
-                <strong>Pedidos:</strong> ${totalQtdPedidos} | <strong>Economia:</strong> ${economiaDia}
-            `;
-
-            gerarGraficoCorreto(minInicioLote, pacientes, pedidosReposicao, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, lambda);
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    const verticalLinePlugin = {
-        id: 'verticalLinePlugin',
-        afterDraw: (chart) => {
-            const ctx = chart.ctx;
-            const xAxis = chart.scales.x;
-            const yAxis = chart.scales.y;
-            
-            const dataset = chart.data.datasets[2]; // Dataset de Doses Automáticas (bolas azuis)
-            if (!dataset) return;
-
-            dataset.data.forEach(point => {
-                if (point && point.y !== null && point.y !== undefined) {
-                    const xCoord = xAxis.getPixelForValue(point.x);
-                    const yCoord = yAxis.getPixelForValue(point.y);
-
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(xCoord, yAxis.bottom);
-                    ctx.lineTo(xCoord, yCoord);
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-                    ctx.setLineDash([4, 4]);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            });
-        }
-    };
-
-    function gerarGraficoCorreto(minInicio, pacientes, pedidosHorarios, reposicoesManuaisArr, reposicoesAutoArr, a0Inicial, lambda) {
-        let fimSimulacao = minInicio + 420; 
-        
-        let minutosUnicos = new Set();
-        for (let m = minInicio; m <= fimSimulacao; m += 5) {
-            minutosUnicos.add(m);
-        }
-        pacientes.forEach(p => minutosUnicos.add(p.minutos));
-        pedidosHorarios.forEach(h => minutosUnicos.add(converterHoraParaMinutos(h)));
-
-        let minutosArray = Array.from(minutosUnicos).sort((a, b) => a - b);
-
-        let dadosCurva = [];
-        let dadosAtividadePre = [];
-        let dadosDosesAutoAcima = [];
-        let dadosDosesExtrasAcima = [];
-        let dadosPacientesPuntos = [];
-
-        let minutosPacientes = pacientes.map(p => p.minutos);
-        let minutosAuto = reposicoesAutoArr.map(h => converterHoraParaMinutos(h));
-        let minutosExtras = reposicoesManuaisArr.map(h => converterHoraParaMinutos(h));
-
-        let estoqueGrafico = a0Inicial;
-        let ultimoMinutoGrafico = minInicio;
-        let maxAtivGrafico = a0Inicial;
-
-        minutosArray.forEach(m => {
-            let dt = m - ultimoMinutoGrafico;
-            if (dt > 0) {
-                estoqueGrafico = estoqueGrafico * Math.exp(-lambda * dt);
-                ultimoMinutoGrafico = m;
-            }
-
-            let horarioStr = minutosParaHoraStr(m);
-            if (pedidosHorarios.includes(horarioStr) && m !== minInicio) {
-                estoqueGrafico += a0Inicial; 
-            }
-
-            if (estoqueGrafico > maxAtivGrafico) maxAtivGrafico = estoqueGrafico;
-
-            let ativPrePaciente = estoqueGrafico > 0 ? parseFloat(estoqueGrafico.toFixed(2)) : 0;
-
-            let pacNesteMinuto = pacientes.find(p => p.minutos === m);
-            if (pacNesteMinuto) {
-                estoqueGrafico -= pacNesteMinuto.doseNecessaria;
-                if (estoqueGrafico < 0) estoqueGrafico = 0;
-            }
-
-            let valorAtiv = estoqueGrafico > 0 ? parseFloat(estoqueGrafico.toFixed(2)) : 0;
-
-            dadosCurva.push({ x: m, y: valorAtiv });
-
-            if (minutosPacientes.includes(m)) {
-                dadosPacientesPuntos.push({ x: m, y: valorAtiv });
-                dadosAtividadePre.push(ativPrePaciente);
-            } else {
-                dadosPacientesPuntos.push({ x: m, y: null });
-                dadosAtividadePre.push(null);
-            }
-
-            if (minutosAuto.includes(m)) {
-                let valAutoPonto = (m === minInicio) ? a0Inicial : (ativPrePaciente);
-                dadosDosesAutoAcima.push({ x: m, y: valAutoPonto });
-            } else {
-                dadosDosesAutoAcima.push({ x: m, y: null });
-            }
-
-            if (minutosExtras.includes(m)) {
-                dadosDosesExtrasAcima.push({ x: m, y: ativPrePaciente });
-            } else {
-                dadosDosesExtrasAcima.push({ x: m, y: null });
-            }
-        });
-
-        const ctx = document.getElementById('graficoDecaimento').getContext('2d');
-        if (meuGrafico) meuGrafico.destroy();
-
-        meuGrafico = new Chart(ctx, {
-            type: 'line',
-            data: {
-                datasets: [
-                    {
-                        label: 'Atividade Restante A(t) [mCi]',
-                        data: dadosCurva,
-                        atividadePrePaciente: dadosAtividadePre,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.2,
-                        pointRadius: 0,
-                        pointHoverRadius: 10
-                    },
-                    {
-                        label: 'Pacientes',
-                        data: dadosPacientesPuntos,
-                        borderColor: 'transparent',
-                        backgroundColor: '#ef4444',
-                        pointBackgroundColor: '#ef4444',
-                        pointBorderColor: '#ef4444',
-                        pointRadius: 7,
-                        pointHoverRadius: 11,
-                        showLine: false
-                    },
-                    {
-                        label: 'Doses Automáticas',
-                        data: dadosDosesAutoAcima,
-                        borderColor: 'transparent',
-                        backgroundColor: '#3b82f6',
-                        pointBackgroundColor: '#3b82f6',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 1.5,
-                        pointRadius: 7,
-                        pointHoverRadius: 11,
-                        showLine: false
-                    },
-                    {
-                        label: 'Doses Extras',
-                        data: dadosDosesExtrasAcima,
-                        borderColor: 'transparent',
-                        backgroundColor: '#f59e0b',
-                        pointBackgroundColor: '#f59e0b',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 1.5,
-                        pointRadius: 7,
-                        pointHoverRadius: 11,
-                        showLine: false
-                    }
-                ]
-            },
-            plugins: [verticalLinePlugin],
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    tooltip: {
-                        intersect: false,
-                        mode: 'nearest',
-                        callbacks: {
-                            title: function(context) {
-                                let minutosTotais = context[0].parsed.x;
-                                return minutosParaHoraStr(minutosTotais);
-                            },
-                            label: function(context) {
-                                let datasetIndex = context.datasetIndex;
-                                let minutosTotais = context.parsed.x;
-
-                                if (datasetIndex === 0) {
-                                    return `Resíduo no Frasco: ${context.parsed.y.toFixed(2).replace('.', ',')} mCi`;
-                                }
-                                if (datasetIndex === 1) {
-                                    let pac = pacientesCacheGlobal.find(p => p.minutos === minutosTotais);
-                                    if (pac) {
-                                        return [
-                                            `Paciente (${pac.peso} kg)`,
-                                            `Dose Injetada: ${pac.doseNecessaria.toFixed(2).replace('.', ',')} mCi`,
-                                            `Sobra no Frasco: ${context.parsed.y.toFixed(2).replace('.', ',')} mCi`
-                                        ];
-                                    }
-                                }
-                                if (datasetIndex === 2) {
-                                    let detalhe = tooltipDetalhesCache[minutosTotais];
-                                    if (detalhe && detalhe.tipo !== 'lote_inicial') {
-                                        return [
-                                            `Reposição Automática de Lote`,
-                                            `Resíduo Anterior: ${detalhe.estoqueAntes.toFixed(2).replace('.', ',')} mCi`,
-                                            `Lote Novo Adicionado: +${detalhe.loteNovo.toFixed(2).replace('.', ',')} mCi`,
-                                            `Estoque Total com Inclusão: ${detalhe.estoqueTotal.toFixed(2).replace('.', ',')} mCi`
-                                        ];
-                                    }
-                                    return `Lote Inicial: ${a0Inicial.toFixed(2).replace('.', ',')} mCi`;
-                                }
-                                if (datasetIndex === 3) {
-                                    let detalhe = tooltipDetalhesCache[minutosTotais];
-                                    if (detalhe) {
-                                        return [
-                                            `Reposição Extra Manual`,
-                                            `Resíduo Anterior: ${detalhe.estoqueAntes.toFixed(2).replace('.', ',')} mCi`,
-                                            `Lote Novo Adicionado: +${detalhe.loteNovo.toFixed(2).replace('.', ',')} mCi`,
-                                            `Estoque Total com Inclusão: ${detalhe.estoqueTotal.toFixed(2).replace('.', ',')} mCi`
-                                        ];
-                                    }
-                                    return `Reposição Extra Manuscrita (${a0Inicial} mCi)`;
-                                }
-                                return `Atividade Restante: ${context.parsed.y.toFixed(2).replace('.', ',')} mCi`;
-                            }
-                        }
-                    }
-                },
-                onClick: (e, elements) => {
-                    const dataAtual = document.getElementById('filtroData').value;
-                    if (!reposicoesExtrasPorData[dataAtual]) reposicoesExtrasPorData[dataAtual] = [];
-                    if (!overridesAutomáticosPorData[dataAtual]) overridesAutomáticosPorData[dataAtual] = {};
-
-                    if (elements && elements.length > 0) {
-                        const hit = elements[0];
-                        const datasetIndex = hit.datasetIndex;
-                        const index = hit.index;
-                        const minutosClicados = meuGrafico.data.datasets[datasetIndex].data[index].x;
-                        let horarioClicado = minutosParaHoraStr(minutosClicados);
-
-                        if (datasetIndex === 2) { 
-                            let escolhaAuto = prompt(`🔵 Dose Automática às ${horarioClicado}.\nDeseja alterar o horário desta dose de reposição?\nDigite o NOVO HORÁRIO (HH:MM):`, horarioClicado);
-                            if (escolhaAuto !== null && escolhaAuto.includes(':')) {
-                                let pacAlvo = pacientes.find(p => p.horaStr === horarioClicado) || pacientes[0];
-                                if (pacAlvo) {
-                                    overridesAutomáticosPorData[dataAtual][pacAlvo.horaStr] = escolhaAuto.trim();
-                                    aoDigitarPacientes();
-                                }
-                            }
-                            return;
-                        }
-
-                        if (datasetIndex === 3) { 
-                            let escolhaDose = prompt(`🟠 Dose Extra às ${horarioClicado}.\nDigite:\n1 - Alterar Horário\n2 - Remover Dose Extra`, "1");
-                            if (escolhaDose === "1") {
-                                let novoH = prompt("Digite o NOVO HORÁRIO (HH:MM):", horarioClicado);
-                                if (novoH !== null && novoH.includes(':')) {
-                                    reposicoesExtrasPorData[dataAtual] = reposicoesExtrasPorData[dataAtual].filter(h => h !== horarioClicado);
-                                    reposicoesExtrasPorData[dataAtual].push(novoH.trim());
-                                    aoDigitarPacientes();
-                                }
-                            } else if (escolhaDose === "2") {
-                                if (confirm(`Remover dose extra das ${horarioClicado}?`)) {
-                                    reposicoesExtrasPorData[dataAtual] = reposicoesExtrasPorData[dataAtual].filter(h => h !== horarioClicado);
-                                    aoDigitarPacientes();
-                                }
-                            }
-                            return;
-                        }
-
-                        let pacEncontrado = pacientes.find(p => p.minutos === minutosClicados);
-                        if (pacEncontrado) {
-                            let escolha = prompt(`🔴 Paciente às ${pacEncontrado.horaStr} (${pacEncontrado.peso} kg).\nDigite:\n1 - Alterar Horário / Peso\n2 - Remover Paciente`, "1");
-                            if (escolha === "1") {
-                                let novoH = prompt("Digite o NOVO HORÁRIO (HH:MM):", pacEncontrado.horaStr);
-                                if (novoH !== null && novoH.includes(':')) {
-                                    pacEncontrado.minutos = converterHoraParaMinutos(novoH);
-                                    pacEncontrado.horaStr = minutosParaHoraStr(pacEncontrado.minutos);
-                                }
-                                let novoP = prompt("Digite o NOVO PESO (kg):", pacEncontrado.peso);
-                                if (novoP !== null && !isNaN(parseFloat(novoP))) {
-                                    pacEncontrado.peso = parseFloat(novoP);
-                                }
-                                pacientes.sort((a, b) => a.minutos - b.minutos);
-                                document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
-                                aoDigitarPacientes();
-                            } else if (escolha === "2") {
-                                if (confirm(`Remover paciente das ${pacEncontrado.horaStr}?`)) {
-                                    pacientes = pacientes.filter(p => p.minutos !== pacEncontrado.minutos);
-                                    document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
-                                    aoDigitarPacientes();
-                                }
-                            }
-                            return;
-                        }
-                    }
-
-                    const canvasPosition = Chart.helpers.getRelativePosition(e, meuGrafico);
-                    const dataX = meuGrafico.scales.x.getValueForPixel(canvasPosition.x);
-                    if (dataX !== undefined) {
-                        let minutosArredondados = Math.round(dataX / 5) * 5;
-                        let horarioSugerido = minutosParaHoraStr(minutosArredondados);
-
-                        let tipoAdd = prompt(`O que deseja adicionar às ${horarioSugerido}?\nDigite:\n1 - Paciente\n2 - Dose Extra (${a0Inicial} mCi)`, "1");
-
-                        if (tipoAdd === "1") {
-                            let horaPac = prompt("Digite o Horário do Paciente (HH:MM):", horarioSugerido);
-                            let pesoPac = prompt("Digite o Peso do Paciente (kg):", "80");
-                            if (horaPac && horaPac.includes(':') && pesoPac && !isNaN(pesoPac)) {
-                                let textarea = document.getElementById('listaPacientes');
-                                let linhaNueva = `${horaPac.trim()} = ${pesoPac.trim()}`;
-                                textarea.value = textarea.value.trim() ? textarea.value.trim() + '\n' + linhaNueva : linhaNueva;
-                                aoDigitarPacientes();
-                            }
-                        } else if (tipoAdd === "2") {
-                            let horaExtra = prompt("Digite o Horário da Dose Extra (HH:MM):", horarioSugerido);
-                            if (horaExtra && horaExtra.includes(':')) {
-                                reposicoesExtrasPorData[dataAtual].push(horaExtra.trim());
-                                aoDigitarPacientes();
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: { 
-                        beginAtZero: true, 
-                        max: maxAtivGrafico * 1.25, 
-                        title: { display: true, text: 'Atividade (mCi)' } 
-                    },
-                    x: { 
-                        type: 'linear',
-                        position: 'bottom',
-                        title: { display: true, text: 'Horário Proporcional (🔴 Pacientes | 🔵 Doses Auto | 🟠 Doses Extras)' },
-                        ticks: {
-                            callback: function(value) { return minutosParaHoraStr(value); },
-                            stepSize: 30
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    function baixarTxtPedido() {
-        let texto = document.getElementById('listaPedido').value;
-        if (!texto) {
-            alert("Nenhum pedido gerado para baixar.");
-            return;
-        }
-        let blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
-        let link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `pedido_radiofarmaco_${document.getElementById('dataInsercao').value}.txt`;
-        link.click();
-    }
-
-    async function carregarDadosNuvemInicial() {
-        try {
-            document.getElementById('sync-status').innerText = "(Carregando...)";
-            const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': API_KEY }
-            });
-            if (!resposta.ok) throw new Error('Erro no carregamento remoto');
-            const resultado = await resposta.json();
-            bancoDadosRemoto = resultado.record || resultado;
-            if (!bancoDadosRemoto.historicoDias) bancoDadosRemoto.historicoDias = {};
-
-            limparHistoricoAntigo();
-            carregarDadosPorData();
-            calcularEstatisticasGlobais();
-            document.getElementById('sync-status').innerText = "(Sincronizado)";
-        } catch (e) {
-            console.error(e);
-            document.getElementById('sync-status').innerText = "(Erro de conexão)";
-        }
-    }
-
-    async function carregarDadosNuvemBackground() {
-        try {
-            const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': API_KEY }
-            });
-            if (!resposta.ok) return;
-            const resultado = await resposta.json();
-            let dadosRemotos = resultado.record || resultado;
-            if (dadosRemotos && dadosRemotos.historicoDias) {
-                bancoDadosRemoto = dadosRemotos;
-                calcularEstatisticasGlobais();
-            }
-        } catch (e) {}
-    }
-
-    async function salvarDadosNuvem() {
-        try {
-            const dataInsercao = document.getElementById('dataInsercao').value || obterDataAtualStr();
-            const textoPacientes = document.getElementById('listaPacientes').value;
-            const dataAtual = document.getElementById('filtroData').value;
-            const reposicoesExtrasAtuais = reposicoesExtrasPorData[dataAtual] || [];
-            const overridesAtuais = overridesAutomáticosPorData[dataAtual] || {};
-
-            if (!bancoDadosRemoto.historicoDias) bancoDadosRemoto.historicoDias = {};
-
-            bancoDadosRemoto.historicoDias[dataInsercao] = {
-                textoPacientes: textoPacientes,
-                radiofarmaco: document.getElementById('radiofarmaco').value,
-                fatorSubtle: document.getElementById('fatorSubtle').value,
-                meiaVidaCustom: document.getElementById('meiaVidaCustom').value,
-                reposicoesExtras: reposicoesExtrasAtuais,
-                overridesAuto: overridesAtuais,
-                atualizadoEm: new Date().toISOString()
-            };
-
-            calcularEstatisticasGlobais();
-
-            const resposta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'X-Master-Key': API_KEY,
-                    'X-Bin-Versioning': 'false'
-                },
-                body: JSON.stringify(bancoDadosRemoto)
-            });
-
-            if (!resposta.ok) throw new Error('Erro ao salvar no servidor');
-            document.getElementById('sync-status').innerText = "(Salvo na Nuvem)";
-            document.getElementById('syncStatus').innerText = "Salvo automaticamente ✔";
-        } catch (e) {
-            console.error(e);
-            document.getElementById('sync-status').innerText = "(Erro ao salvar)";
-            document.getElementById('syncStatus').innerText = "Erro ao salvar ❌";
-        }
-    }
-
-    function limparHistoricoAntigo() {
-        const hoje = new Date();
-        let alterado = false;
-        Object.keys(bancoDadosRemoto.historicoDias).forEach(dataStr => {
-            const dataRegistro = new Date(dataStr);
-            const diffDias = (hoje - dataRegistro) / (1000 * 60 * 60 * 24);
-            if (diffDias > 7) {
-                delete bancoDadosRemoto.historicoDias[dataStr];
-                alterado = true;
-            }
-        });
-        if (alterado) salvarDadosNuvem();
-    }
-
-    function calcularEstatisticasGlobais() {
-        let totalPacientesGeral = 0;
-        let totalEconomiaGeral = 0;
-        let htmlDetalhesPrint = "";
-
-        let datasOrdenadas = Object.keys(bancoDadosRemoto.historicoDias).sort();
-
-        datasOrdenadas.forEach(dataStr => {
-            const diaObj = bancoDadosRemoto.historicoDias[dataStr];
-            if (diaObj && diaObj.textoPacientes) {
-                let linhas = diaObj.textoPacientes.trim().split('\n');
-                let pacientesTemp = [];
-                
-                linhas.forEach(l => {
-                    let linhaLimpa = l.trim();
-                    if (linhaLimpa) {
-                        let partes = linhaLimpa.includes('=') ? linhaLimpa.split('=') : linhaLimpa.split(' ');
-                        if (partes.length >= 2) {
-                            let hStr = partes[0].trim();
-                            let pVal = parseFloat(partes[1].trim());
-                            if (!isNaN(pVal)) {
-                                pacientesTemp.push({ min: converterHoraParaMinutos(hStr), dose: pVal * 0.1 * 0.8, hStr });
-                            }
-                        }
-                    }
-                });
-
-                if (pacientesTemp.length > 0) {
-                    pacientesTemp.sort((a, b) => a.min - b.min);
-                    let a0Inicial = 10;
-                    let est = a0Inicial;
-                    let ultMin = pacientesTemp[0].min;
-                    let qtdAuto = 1;
-
-                    let repsExtrasDia = diaObj.reposicoesExtras || [];
-                    let repsMin = repsExtrasDia.map(h => converterHoraParaMinutos(h));
-                    let mvDia = parseFloat(diaObj.radiofarmaco) || 109.8;
-                    let lambdaDia = 0.693 / mvDia;
-
-                    pacientesTemp.forEach((p, idx) => {
-                        let dt = p.min - ultMin;
-                        if (dt > 0) est = est * Math.exp(-lambdaDia * dt);
-                        ultMin = p.min;
-
-                        repsMin.forEach(rm => {
-                            if (rm === p.min) {
-                                est += a0Inicial;
-                            }
-                        });
-
-                        if (idx > 0 && est < p.dose) {
-                            qtdAuto++;
-                            est += a0Inicial;
-                        }
-                        est -= p.dose;
-                        if (est < 0) est = 0;
-                    });
-
-                    let qtdExtras = repsExtrasDia.length;
-                    let qtdPac = pacientesTemp.length;
-                    let totalDosesDoadas = qtdAuto + qtdExtras;
-                    let econDia = qtdPac - totalDosesDoadas;
-                    if (econDia < 0) econDia = 0;
-
-                    totalPacientesGeral += qtdPac;
-                    totalEconomiaGeral += econDia;
-
-                    let partesData = dataStr.split('-');
-                    let dataFormatada = `${partesData[2]}/${partesData[1]}/${partesData[0]}`;
-
-                    htmlDetalhesPrint += `
-                        <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #cbd5e1;">
-                            <strong>Data: ${dataFormatada}</strong><br>
-                            - Total de pacientes: ${qtdPac}<br>
-                            - Doses Automáticas: <strong>${qtdAuto}</strong> | Extras: <strong>${qtdExtras}</strong><br>
-                            - Economia do dia: ${econDia} doses
-                        </div>
-                    `;
-                }
-            }
-        });
-
-        document.getElementById('stat-total').innerText = totalPacientesGeral;
-        document.getElementById('stat-economia').innerText = totalEconomiaGeral;
-        document.getElementById('lista-detalhes-print').innerHTML = htmlDetalhesPrint || "<p>Nenhum registro nos últimos dias.</p>";
-    }
-
-    async function zerarBancoNuvem() {
-        let confirmacao = prompt("ATENÇÃO: Esta ação apagará todo o histórico da nuvem!\n\nPara confirmar, digite exatamente a palavra: ZERAR");
-        
-        if (confirmacao !== null && confirmacao.trim().toUpperCase() === "ZERAR") {
-            bancoDadosRemoto = { historicoDias: {} };
-            reposicoesExtrasPorData = {};
-            overridesAutomáticosPorData = {};
-            await salvarDadosNuvem();
-            document.getElementById('listaPacientes').value = "";
-            processarSimulacaoCompleta();
-            alert("Histórico limpo com sucesso!");
-        } else {
-            alert("Ação cancelada. A palavra de confirmação não foi digitada corretamente.");
-        }
-    }
-</script>
-
-</body>
-</html>
