@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora de Decaimento e Reposição - Rádio-Gestão</title>
+    <title id="pageTitle">Calculadora de Decaimento e Reposição - Rádio-Gestão</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -69,12 +69,60 @@
         .header { text-align: center; margin-bottom: 20px; }
         .header img {
             width: 100%;
-            max-width: 450px;
+            max-width: 550px;
             height: auto;
             display: block;
             margin: 0 auto 15px auto;
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;
+        }
+
+        .header-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header-top-row h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #1e293b;
+        }
+
+        .lang-selector-container {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .lang-btn {
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: auto;
+            margin-top: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .lang-btn:hover {
+            border-color: #94a3b8;
+            background: #f1f5f9;
+        }
+
+        .lang-btn.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            color: #1d4ed8;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
 
         .print-logo {
@@ -83,7 +131,7 @@
             margin-bottom: 20px;
         }
         .print-logo img { 
-            max-width: 300px; 
+            max-width: 350px; 
             height: auto; 
             image-rendering: -webkit-optimize-contrast;
         }
@@ -203,85 +251,93 @@
         <div class="dialog-msg" id="dialogMensagem"></div>
         <div id="dialogInputs"></div>
         <div class="dialog-buttons">
-            <button type="button" id="dialogBtnCancelar" style="background:#94a3b8;">Cancelar</button>
-            <button type="button" id="dialogBtnOk" class="btn-success">OK</button>
+            <button type="button" id="dialogBtnCancelar" style="background:#94a3b8;" data-i18n="btnCancel">Cancelar</button>
+            <button type="button" id="dialogBtnOk" class="btn-success" data-i18n="btnOk">OK</button>
         </div>
     </div>
 </dialog>
 
 <div class="print-logo">
     <img src="logo.png" alt="Logo Hospiline">
-    <h2 style="color: #1e293b; margin-top: 10px;">Relatório Consolidado de Gestão - Rádio-Gestão</h2>
+    <h2 style="color: #1e293b; margin-top: 10px;" data-i18n="printTitle">Relatório Consolidado de Gestão - Rádio-Gestão</h2>
     <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 15px 0;">
 </div>
 
 <div class="card">
     <div class="header">
         <img src="logo.png" alt="Logo Hospiline">
-        <h2>Lista de Pacientes do Dia</h2>
+    </div>
+
+    <div class="header-top-row">
+        <h2 data-i18n="titlePatientsList">Lista de Pacientes do Dia</h2>
+        <div class="lang-selector-container">
+            <button type="button" id="btnLangPt" class="lang-btn active" onclick="mudarIdioma('pt')">PT</button>
+            <button type="button" id="btnLangEn" class="lang-btn" onclick="mudarIdioma('en')">EN</button>
+            <button type="button" id="btnLangEs" class="lang-btn" onclick="mudarIdioma('es')">ES</button>
+        </div>
     </div>
 
     <div class="historico-box">
         <div class="config-grid">
             <div>
-                <label for="dataInsercao">Data de Inserção / Atendimento:</label>
+                <label for="dataInsercao" data-i18n="lblDateInsertion">Data de Inserção / Atendimento:</label>
                 <input type="date" id="dataInsercao" onchange="aoMudarDataInsercao()">
             </div>
             <div>
-                <label for="filtroData">Consultar Histórico (Visualização):</label>
+                <label for="filtroData" data-i18n="lblDateHistory">Consultar Histórico (Visualização):</label>
                 <input type="date" id="filtroData" onchange="carregarDadosPorData()">
             </div>
             <div>
-                <label for="radiofarmaco">Radiofármaco (Isótopo):</label>
+                <label for="radiofarmaco" data-i18n="lblRadiopharm">Radiofármaco (Isótopo):</label>
                 <select id="radiofarmaco" onchange="aoMudarRadiofarmaco()">
-                    <option value="109.8" selected>¹⁸F-FDG (Meia-vida: 109.8 min)</option>
-                    <option value="360">⁹⁹ᵐTc - Tecnécio (Meia-vida: 360 min)</option>
-                    <option value="408">⁶⁸Ga - Gálio (Meia-vida: 68 min)</option>
-                    <option value="11520">¹³¹I - Iodo (Meia-vida: 8 dias)</option>
-                    <option value="9561.6">¹⁷⁷Lu - Lutécio (Meia-vida: 6.64 dias)</option>
-                    <option value="custom">Outro (Meia-Vida personalizada)</option>
+                    <option value="109.8" selected data-i18n="optFDG">¹⁸F-FDG (Meia-vida: 109.8 min)</option>
+                    <option value="360" data-i18n="optTc">⁹⁹ᵐTc - Tecnécio (Meia-vida: 360 min)</option>
+                    <option value="408" data-i18n="optGa">⁶⁸Ga - Gálio (Meia-vida: 68 min)</option>
+                    <option value="11520" data-i18n="optI">¹³¹I - Iodo (Meia-vida: 8 dias)</option>
+                    <option value="9561.6" data-i18n="optLu">¹⁷⁷Lu - Lutécio (Meia-vida: 6.64 dias)</option>
+                    <option value="custom" data-i18n="optCustom">Outro (Meia-Vida personalizada)</option>
                 </select>
             </div>
             <div id="boxMeiaVidaCustom" style="display: none;">
-                <label for="meiaVidaCustom">Meia-Vida Custom (min):</label>
+                <label for="meiaVidaCustom" data-i18n="lblHalfLifeCustom">Meia-Vida Custom (min):</label>
                 <input type="number" id="meiaVidaCustom" value="109.8" step="0.1" min="0.1" oninput="aoDigitarPacientes()">
             </div>
             <div>
-                <label for="fatorSubtle">Fator de Redução (Subtle AI):</label>
+                <label for="fatorSubtle" data-i18n="lblFactor">Fator de Redução (Subtle AI):</label>
                 <input type="number" id="fatorSubtle" value="0.8" step="0.05" min="0.1" max="2.0" oninput="atualizarInfoFator(); aoDigitarPacientes();" placeholder="Ex: 0.8">
                 <div id="infoFatorTexto" class="info-status-fator">Economia de 20%</div>
             </div>
             <div>
-                <label for="dosePadraoLote">Dose Inicial do Lote (mCi):</label>
+                <label for="dosePadraoLote" data-i18n="lblBatchDose">Dose Inicial do Lote (mCi):</label>
                 <input type="number" id="dosePadraoLote" value="10" step="0.5" min="1" max="50" oninput="aoDigitarPacientes()">
             </div>
             <div>
                 <label style="visibility: hidden; margin-top: 10px;">Ação:</label>
-                <button type="button" onclick="salvarConfiguracoesPadrao()" style="background: #3b82f6; margin-top: 4px; height: 41px;">Salvar Configurações como Padrão</button>
+                <button type="button" onclick="salvarConfiguracoesPadrao()" style="background: #3b82f6; margin-top: 4px; height: 41px;" data-i18n="btnSaveDefaults">Salvar Configurações no Banco</button>
             </div>
         </div>
     </div>
 
-    <label>Adicionar Paciente Rápido (Máscara automática):</label>
+    <label data-i18n="lblQuickAdd">Adicionar Paciente Rápido (Máscara automática):</label>
     <div class="input-rapido-container">
         <input type="text" id="inputHoraRapida" placeholder="Horário (Ex: 0730)" style="flex: 1;" maxlength="5">
         <input type="number" id="inputPesoRapido" placeholder="Peso em kg (Ex: 80)" style="flex: 1;">
-        <button type="button" class="btn-success" onclick="adicionarPacienteRapido()" style="margin-top: 0; flex: 1;">+ Adicionar</button>
+        <button type="button" class="btn-success" onclick="adicionarPacienteRapido()" style="margin-top: 0; flex: 1;" data-i18n="btnAddQuick">+ Adicionar</button>
     </div>
-    <span style="font-size: 11px; color: #64748b;">Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.</span>
+    <span style="font-size: 11px; color: #64748b;" data-i18n="hintQuickAdd">Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.</span>
 
-    <label for="listaPacientes" style="margin-top: 15px;">Lista Completa (HH:MM = Peso) | Editável:</label>
+    <label for="listaPacientes" style="margin-top: 15px;" data-i18n="lblFullList">Lista Completa (HH:MM = Peso) | Editável:</label>
     <textarea id="listaPacientes" rows="5" placeholder="Exemplo:&#10;07:00 = 82&#10;08:00 = 90" oninput="aoDigitarPacientes()"></textarea>
 
     <div class="result" id="resultado">
-        <span id="textoResultadoSimulacao">Aguardando inserção de dados dos pacientes...</span>
+        <span id="textoResultadoSimulacao" data-i18n="msgWaitingData">Aguardando inserção de dados dos pacientes...</span>
         <span id="syncStatus" class="sync-status"></span>
     </div>
 </div>
 
 <div class="card">
-    <h3 id="tituloGraficoTeto">Curva do Decaimento e Reposições</h3>
-    <p style="font-size: 13px; color: #475569; margin-top: -5px; line-height: 1.4;">
+    <h3 id="tituloGraficoTeto" data-i18n="titleChart">Curva do Decaimento e Reposições</h3>
+    <p style="font-size: 13px; color: #475569; margin-top: -5px; line-height: 1.4;" data-i18n="legendChart">
         🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante).<br>
         🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior).<br>
         🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais.<br>
@@ -293,33 +349,33 @@
 </div>
 
 <div class="card">
-    <h3>Lista para Pedido (Distribuidora - TXT)</h3>
-    <label for="modoHorarioPedido">Regra de Horário para Distribuidora:</label>
+    <h3 data-i18n="titleOrderList">Lista para Pedido (Distribuidora - TXT)</h3>
+    <label for="modoHorarioPedido" data-i18n="lblOrderRule">Regra de Horário para Distribuidora:</label>
     <select id="modoHorarioPedido" onchange="processarSimulacaoCompleta()">
-        <option value="exato" selected>Horário Exato (Ex: 08:00, 09:00, 09:30)</option>
-        <option value="horaEmHora">De Hora em Hora (Antecipado / Consolidado - Ex: 09:00 (2 doses))</option>
+        <option value="exato" selected data-i18n="optExactTime">Horário Exato (Ex: 08:00, 09:00, 09:30)</option>
+        <option value="horaEmHora" data-i18n="optHourly">De Hora em Hora (Antecipado / Consolidado - Ex: 09:00 (2 doses))</option>
     </select>
 
     <textarea id="listaPedido" rows="6" readonly style="background: #f8fafc; font-family: monospace; margin-top: 10px;" placeholder="A lista de horários aparecerá aqui..."></textarea>
-    <button class="btn-warning" onclick="baixarTxtPedido()">Baixar Lista em TXT</button>
-    <button class="btn-warning" onclick="imprimirPedido()" style="background:#0ea5e9;">Imprimir Apenas o Pedido</button>
+    <button class="btn-warning" onclick="baixarTxtPedido()" data-i18n="btnDownloadTxt">Baixar Lista em TXT</button>
+    <button class="btn-warning" onclick="imprimirPedido()" style="background:#0ea5e9;" data-i18n="btnPrintOrder">Imprimir Apenas o Pedido</button>
 </div>
 
 <div class="card stats">
-    <h3>Relatório Consolidado  <span id="sync-status" class="loading">Carregando dados...</span></h3>
-    <p><strong>Total de Pacientes Atendidos (7 dias):</strong> <span id="stat-total">0</span></p>
-    <p><strong>Doses Economizadas (Estimativa):</strong> <span id="stat-economia">0</span></p>
+    <h3><span data-i18n="titleConsolidated">Relatório Consolidado</span> <span id="sync-status" class="loading">Carregando dados...</span></h3>
+    <p><strong data-i18n="lblTotalPatients">Total de Pacientes Atendidos (7 dias):</strong> <span id="stat-total">0</span></p>
+    <p><strong data-i18n="lblSavedDoses">Doses Economizadas (Estimativa):</strong> <span id="stat-economia">0</span></p>
     
     <div id="detalhes-diarios-print">
-        <h4 style="color: #065f46; margin-bottom: 10px;">Detalhamento Diário (Últimos 7 Dias):</h4>
+        <h4 style="color: #065f46; margin-bottom: 10px;" data-i18n="titleDailyDetails">Detalhamento Diário (Últimos 7 Dias):</h4>
         <div id="lista-detalhes-print"></div>
     </div>
     
-    <button class="btn-success" onclick="window.print()" style="margin-top: 15px;">Imprimir / Salvar Resumo (PDF)</button>
-    <button class="btn-danger" onclick="zerarBancoNuvem()" style="margin-top: 10px;">Zerar / Limpar Histórico Antigo</button>
+    <button class="btn-success" onclick="window.print()" style="margin-top: 15px;" data-i18n="btnPrintPdf">Imprimir / Salvar Resumo (PDF)</button>
+    <button class="btn-danger" onclick="zerarBancoNuvem()" style="margin-top: 10px;" data-i18n="btnClearHistory">Zerar / Limpar Histórico Antigo</button>
 </div>
 
-<div class="footer-copyright">
+<div class="footer-copyright" data-i18n="footerCopyright">
     Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9
 </div>
 
@@ -337,10 +393,234 @@
         }
     });
 
+    const i18n = {
+        pt: {
+            pageTitle: "Calculadora de Decaimento e Reposição - Rádio-Gestão",
+            printTitle: "Relatório Consolidado de Gestão - Rádio-Gestão",
+            titlePatientsList: "Lista de Pacientes do Dia",
+            lblDateInsertion: "Data de Inserção / Atendimento:",
+            lblDateHistory: "Consultar Histórico (Visualização):",
+            lblRadiopharm: "Radiofármaco (Isótopo):",
+            optFDG: "¹⁸F-FDG (Meia-vida: 109.8 min)",
+            optTc: "⁹⁹ᵐTc - Tecnécio (Meia-vida: 360 min)",
+            optGa: "⁶⁸Ga - Gálio (Meia-vida: 68 min)",
+            optI: "¹³¹I - Iodo (Meia-vida: 8 dias)",
+            optLu: "¹⁷⁷Lu - Lutécio (Meia-vida: 6.64 dias)",
+            optCustom: "Outro (Meia-Vida personalizada)",
+            lblHalfLifeCustom: "Meia-Vida Custom (min):",
+            lblFactor: "Fator de Redução (Subtle AI):",
+            lblBatchDose: "Dose Inicial do Lote (mCi):",
+            btnSaveDefaults: "Salvar Configurações no Banco",
+            lblQuickAdd: "Adicionar Paciente Rápido (Máscara automática):",
+            phQuickTime: "Horário (Ex: 0730)",
+            phQuickWeight: "Peso em kg (Ex: 80)",
+            btnAddQuick: "+ Adicionar",
+            hintQuickAdd: "Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.",
+            lblFullList: "Lista Completa (HH:MM = Peso) | Editável:",
+            msgWaitingData: "Aguardando inserção de dados dos pacientes...",
+            titleChart: "Curva do Decaimento e Reposições",
+            legendChart: "🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante).<br>🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior).<br>🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais.<br>✨ <b>Passe o mouse em qualquer área do gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.",
+            titleOrderList: "Lista para Pedido (Distribuidora - TXT)",
+            lblOrderRule: "Regra de Horário para Distribuidora:",
+            optExactTime: "Horário Exato (Ex: 08:00, 09:00, 09:30)",
+            optHourly: "De Hora em Hora (Antecipado / Consolidado - Ex: 09:00 (2 doses))",
+            btnDownloadTxt: "Baixar Lista em TXT",
+            btnPrintOrder: "Imprimir Apenas o Pedido",
+            titleConsolidated: "Relatório Consolidado",
+            lblTotalPatients: "Total de Pacientes Atendidos (7 dias):",
+            lblSavedDoses: "Doses Economizadas (Estimativa):",
+            titleDailyDetails: "Detalhamento Diário (Últimos 7 Dias):",
+            btnPrintPdf: "Imprimir / Salvar Resumo (PDF)",
+            btnClearHistory: "Zerar / Limpar Histórico Antigo",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9",
+            btnCancel: "Cancelar",
+            btnOk: "OK",
+            saving: "(Salvando...)",
+            saved: "(Salvo na nuvem)",
+            typing: "(Digitando...)",
+            synchronized: "(Sincronizado)",
+            loading: "Carregando dados...",
+            errSave: "(Erro ao salvar)",
+            errLoad: "(Erro ao carregar)",
+            savingsText: "Economia de {val}% da dose",
+            increaseText: "Aumento de {val}% da dose",
+            standardDoseText: "Dose Padrão (100%)",
+            simCompleted: "Simulação concluída! (Fator: <strong>{subtle}</strong> | Lote: <strong>{a0} mCi</strong>)<br><strong>Pedidos:</strong> {qtd} | <strong>Economia do dia:</strong> {econ}",
+            patientsAttended: "pacientes atendidos",
+            noRecords: "Nenhum registro nos últimos 7 dias.",
+            datasetRemaining: "Atividade Restante A(t) [mCi]",
+            datasetPatients: "Pacientes",
+            datasetStock: "Dose Estoque",
+            datasetExtra: "Doses Extras",
+            chartXTitle: "Horário Proporcional (🔴 Pacientes | 🔵 Dose Estoque | 🟠 Doses Extras)",
+            chartYTitle: "Atividade (mCi)"
+        },
+        en: {
+            pageTitle: "Decay and Replenishment Calculator - Radio-Management",
+            printTitle: "Consolidated Management Report - Radio-Management",
+            titlePatientsList: "Daily Patients List",
+            lblDateInsertion: "Insertion / Service Date:",
+            lblDateHistory: "Check History (View):",
+            lblRadiopharm: "Radiopharmaceutical (Isotope):",
+            optFDG: "¹⁸F-FDG (Half-life: 109.8 min)",
+            optTc: "⁹⁹ᵐTc - Technetium (Half-life: 360 min)",
+            optGa: "⁶⁸Ga - Gallium (Half-life: 68 min)",
+            optI: "¹³¹I - Iodine (Half-life: 8 days)",
+            optLu: "¹⁷⁷Lu - Lutetium (Half-life: 6.64 days)",
+            optCustom: "Other (Custom Half-life)",
+            lblHalfLifeCustom: "Custom Half-Life (min):",
+            lblFactor: "Reduction Factor (Subtle AI):",
+            lblBatchDose: "Initial Batch Dose (mCi):",
+            btnSaveDefaults: "Save Settings to DB",
+            lblQuickAdd: "Quick Add Patient (Auto mask):",
+            phQuickTime: "Time (e.g. 0730)",
+            phQuickWeight: "Weight in kg (e.g. 80)",
+            btnAddQuick: "+ Add",
+            hintQuickAdd: "Tip: Type only time numbers (e.g. 0800) and colon adds automatically.",
+            lblFullList: "Full List (HH:MM = Weight) | Editable:",
+            msgWaitingData: "Waiting for patient data entry...",
+            titleChart: "Decay and Replenishment Curve",
+            legendChart: "🔴 <b>Red Dots:</b> Patients (Shows weight, applied dose, remaining activity).<br>🔵 <b>Blue Dots (Above):</b> Stock Dose (Sum of Auto Dose + Previous Residue).<br>🟠 <b>Orange Dots (Above):</b> Manual Extra Doses.<br>✨ <b>Hover over graph</b> to see exact time and stock. Click to add or manage events.",
+            titleOrderList: "Order List (Distributor - TXT)",
+            lblOrderRule: "Distributor Schedule Rule:",
+            optExactTime: "Exact Time (e.g. 08:00, 09:00, 09:30)",
+            optHourly: "Hourly (Advance / Consolidated - e.g. 09:00 (2 doses))",
+            btnDownloadTxt: "Download List as TXT",
+            btnPrintOrder: "Print Order Only",
+            titleConsolidated: "Consolidated Report",
+            lblTotalPatients: "Total Patients Served (7 days):",
+            lblSavedDoses: "Saved Doses (Estimate):",
+            titleDailyDetails: "Daily Breakdown (Last 7 Days):",
+            btnPrintPdf: "Print / Save Summary (PDF)",
+            btnClearHistory: "Clear / Reset Old History",
+            footerCopyright: "Copyright © 2026 Hospiline. All rights reserved - Version 4.9",
+            btnCancel: "Cancel",
+            btnOk: "OK",
+            saving: "(Saving...)",
+            saved: "(Saved to cloud)",
+            typing: "(Typing...)",
+            synchronized: "(Synchronized)",
+            loading: "Loading data...",
+            errSave: "(Error saving)",
+            errLoad: "(Error loading)",
+            savingsText: "Dose savings of {val}%",
+            increaseText: "Dose increase of {val}%",
+            standardDoseText: "Standard Dose (100%)",
+            simCompleted: "Simulation completed! (Factor: <strong>{subtle}</strong> | Batch: <strong>{a0} mCi</strong>)<br><strong>Orders:</strong> {qtd} | <strong>Day Savings:</strong> {econ}",
+            patientsAttended: "patients served",
+            noRecords: "No records in the last 7 days.",
+            datasetRemaining: "Remaining Activity A(t) [mCi]",
+            datasetPatients: "Patients",
+            datasetStock: "Stock Dose",
+            datasetExtra: "Extra Doses",
+            chartXTitle: "Proportional Time (🔴 Patients | 🔵 Stock Dose | 🟠 Extra Doses)",
+            chartYTitle: "Activity (mCi)"
+        },
+        es: {
+            pageTitle: "Calculadora de Decaimiento y Reposición - Radio-Gestión",
+            printTitle: "Informe Consolidado de Gestión - Radio-Gestión",
+            titlePatientsList: "Lista de Pacientes del Día",
+            lblDateInsertion: "Fecha de Inserción / Atención:",
+            lblDateHistory: "Consultar Historial (Vista):",
+            lblRadiopharm: "Radiofármaco (Isótopo):",
+            optFDG: "¹⁸F-FDG (Semivida: 109.8 min)",
+            optTc: "⁹⁹ᵐTc - Tecnecio (Semivida: 360 min)",
+            optGa: "⁶⁸Ga - Galio (Semivida: 68 min)",
+            optI: "¹³¹I - Yodo (Semivida: 8 días)",
+            optLu: "¹⁷⁷Lu - Lutecio (Semivida: 6.64 días)",
+            optCustom: "Otro (Semivida personalizada)",
+            lblHalfLifeCustom: "Semivida Personalizada (min):",
+            lblFactor: "Factor de Reducción (Subtle AI):",
+            lblBatchDose: "Dosis Inicial del Lote (mCi):",
+            btnSaveDefaults: "Guardar Config en BD",
+            lblQuickAdd: "Agregar Paciente Rápido (Máscara auto):",
+            phQuickTime: "Hora (Ej: 0730)",
+            phQuickWeight: "Peso en kg (Ej: 80)",
+            btnAddQuick: "+ Agregar",
+            hintQuickAdd: "Consejo: Ingrese solo números de hora (ej: 0800) y dos puntos se añaden solos.",
+            lblFullList: "Lista Completa (HH:MM = Peso) | Editable:",
+            msgWaitingData: "Esperando ingreso de datos de pacientes...",
+            titleChart: "Curva de Decaimiento y Reposiciones",
+            legendChart: "🔴 <b>Bolas Rojas:</b> Pacientes (Muestra peso, dosis aplicada y actividad restante).<br>🔵 <b>Bolas Azules (Arriba):</b> Dosis Stock (Suma Dosis Auto + Residuo Anterior).<br>🟠 <b>Bolas Naranjas (Arriba):</b> Dosis Extras Manuales.<br>✨ <b>Pase el cursor en el gráfico</b> para ver hora y stock exacto. Clic para añadir o gestionar eventos.",
+            titleOrderList: "Lista para Pedido (Distribuidora - TXT)",
+            lblOrderRule: "Regra de Horario para Distribuidora:",
+            optExactTime: "Horario Exacto (Ej: 08:00, 09:00, 09:30)",
+            optHourly: "Cada Hora (Anticipado / Consolidado - Ej: 09:00 (2 dosis))",
+            btnDownloadTxt: "Descargar Lista en TXT",
+            btnPrintOrder: "Imprimir Solo Pedido",
+            titleConsolidated: "Informe Consolidado",
+            lblTotalPatients: "Total de Pacientes Atendidos (7 días):",
+            lblSavedDoses: "Dosis Ahorradas (Estimación):",
+            titleDailyDetails: "Detalle Diario (Últimos 7 Días):",
+            btnPrintPdf: "Imprimir / Guardar Resumen (PDF)",
+            btnClearHistory: "Borrar / Limpiar Historial Antiguo",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9",
+            btnCancel: "Cancelar",
+            btnOk: "Aceptar",
+            saving: "(Guardando...)",
+            saved: "(Guardado en la nube)",
+            typing: "(Escribiendo...)",
+            synchronized: "(Sincronizado)",
+            loading: "Cargando datos...",
+            errSave: "(Error al guardar)",
+            errLoad: "(Error al cargar)",
+            savingsText: "Ahorro de {val}% de la dosis",
+            increaseText: "Aumento de {val}% de la dosis",
+            standardDoseText: "Dosis Estándar (100%)",
+            simCompleted: "¡Simulación completada! (Factor: <strong>{subtle}</strong> | Lote: <strong>{a0} mCi</strong>)<br><strong>Pedidos:</strong> {qtd} | <strong>Ahorro del día:</strong> {econ}",
+            patientsAttended: "pacientes atendidos",
+            noRecords: "Sin registros en los últimos 7 días.",
+            datasetRemaining: "Actividad Restante A(t) [mCi]",
+            datasetPatients: "Pacientes",
+            datasetStock: "Dosis Stock",
+            datasetExtra: "Dosis Extras",
+            chartXTitle: "Horario Proporcional (🔴 Pacientes | 🔵 Dosis Stock | 🟠 Dosis Extras)",
+            chartYTitle: "Actividad (mCi)"
+        }
+    };
+
+    let idiomaAtual = 'pt';
+
+    function mudarIdioma(lang) {
+        if (!i18n[lang]) return;
+        idiomaAtual = lang;
+
+        if (estado.banco) {
+            estado.banco.idiomaGlobal = lang;
+            salvarDadosNuvem();
+        }
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (i18n[lang][key]) {
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    el.placeholder = i18n[lang][key];
+                } else {
+                    el.innerHTML = i18n[lang][key];
+                }
+            }
+        });
+
+        document.getElementById('inputHoraRapida').placeholder = i18n[lang].phQuickTime;
+        document.getElementById('inputPesoRapido').placeholder = i18n[lang].phQuickWeight;
+        
+        document.getElementById('btnLangPt').classList.remove('active');
+        document.getElementById('btnLangEn').classList.remove('active');
+        document.getElementById('btnLangEs').classList.remove('active');
+
+        if (lang === 'pt') document.getElementById('btnLangPt').classList.add('active');
+        if (lang === 'en') document.getElementById('btnLangEn').classList.add('active');
+        if (lang === 'es') document.getElementById('btnLangEs').classList.add('active');
+
+        atualizarInfoFator();
+        atualizarRelatorioConsolidado();
+        processarSimulacaoCompleta();
+    }
+
     const DIAS_HISTORICO = 7;
 
     const estado = {
-        banco: { historicoDias: {} },
+        banco: { historicoDias: {}, idiomaGlobal: 'pt', configuracoesGlobais: {} },
         cache: {
             reposicoesExtras: {},
             overridesAuto: {}
@@ -353,7 +633,6 @@
     let meuGrafico = null;
     let temporizadorSalvamento = null;
 
-    // Plugin customizado para desenhar as linhas tracejadas verticais de baixo para cima nas Doses
     const pluginLinhasTracejadasVertical = {
         id: 'linhasTracejadasVertical',
         afterDraw(chart) {
@@ -462,10 +741,25 @@
         try {
             const snapshot = await window.fbGet(getBancoRef());
             if (snapshot.exists()) {
-                estado.banco = snapshot.val() || { historicoDias: {} };
+                estado.banco = snapshot.val() || { historicoDias: {}, idiomaGlobal: 'pt', configuracoesGlobais: {} };
                 limparHistoricoAntigoNoBanco();
             } else {
-                estado.banco = { historicoDias: {} };
+                estado.banco = { historicoDias: {}, idiomaGlobal: 'pt', configuracoesGlobais: {} };
+            }
+
+            if (estado.banco.idiomaGlobal) {
+                mudarIdioma(estado.banco.idiomaGlobal);
+            }
+
+            if (estado.banco.configuracoesGlobais) {
+                const cfg = estado.banco.configuracoesGlobais;
+                if (cfg.dosePadraoLote) document.getElementById('dosePadraoLote').value = cfg.dosePadraoLote;
+                if (cfg.fatorSubtle) document.getElementById('fatorSubtle').value = cfg.fatorSubtle;
+                if (cfg.radiofarmaco) {
+                    document.getElementById('radiofarmaco').value = cfg.radiofarmaco;
+                    aoMudarRadiofarmaco();
+                }
+                if (cfg.meiaVidaCustom) document.getElementById('meiaVidaCustom').value = cfg.meiaVidaCustom;
             }
             
             atualizarRelatorioConsolidado();
@@ -558,6 +852,33 @@
         }
     }
 
+    async function salvarConfiguracoesPadrao() {
+        const valDose = document.getElementById('dosePadraoLote').value;
+        const valFator = document.getElementById('fatorSubtle').value;
+        const valRadio = document.getElementById('radiofarmaco').value;
+        const valMeiaCustom = document.getElementById('meiaVidaCustom').value;
+
+        if (!valDose || isNaN(valDose) || parseFloat(valDose) <= 0) {
+            alert("Insira um valor válido para a dose padrão.");
+            return;
+        }
+
+        if (!estado.banco.configuracoesGlobais) {
+            estado.banco.configuracoesGlobais = {};
+        }
+
+        estado.banco.configuracoesGlobais = {
+            dosePadraoLote: valDose,
+            fatorSubtle: valFator,
+            radiofarmaco: valRadio,
+            meiaVidaCustom: valMeiaCustom
+        };
+
+        await salvarDadosNuvem();
+        alert("Configurações padrão salvas com sucesso no banco de dados!");
+        processarSimulacaoCompleta();
+    }
+
     async function zerarBancoNuvem() {
         const res = await abrirDialogo({
             titulo: 'Zerar Histórico',
@@ -566,7 +887,14 @@
 
         if (!res.confirmado) return;
 
-        estado.banco = { historicoDias: {} };
+        let configGlobalTemp = estado.banco.configuracoesGlobais;
+        let idiomaGlobalTemp = estado.banco.idiomaGlobal;
+
+        estado.banco = { 
+            historicoDias: {}, 
+            idiomaGlobal: idiomaGlobalTemp || 'pt', 
+            configuracoesGlobais: configGlobalTemp || {} 
+        };
         estado.cache.reposicoesExtras = {};
         estado.cache.overridesAuto = {};
 
@@ -606,7 +934,7 @@
                         let economiaDia = qtdDia * (10 * (1 - fator)); 
                         totalEconomia += Math.max(0, economiaDia);
 
-                        listaDetalhesHTML += `<div>• <b>${dataStr}</b>: ${qtdDia} pacientes atendidos</div>`;
+                        listaDetalhesHTML += `<div>• <b>${dataStr}</b>: ${qtdDia} ${i18n[idiomaAtual].patientsAttended}</div>`;
                     }
                 }
             });
@@ -614,11 +942,11 @@
 
         document.getElementById('stat-total').innerText = totalPacientes;
         document.getElementById('stat-economia').innerText = totalEconomia.toFixed(1) + " mCi";
-        document.getElementById('lista-detalhes-print').innerHTML = listaDetalhesHTML || "Nenhum registro nos últimos 7 dias.";
+        document.getElementById('lista-detalhes-print').innerHTML = listaDetalhesHTML || i18n[idiomaAtual].noRecords;
         
         const tituloStat = document.querySelector('.card.stats h3');
         if (tituloStat) {
-            tituloStat.innerHTML = `Relatório Consolidado  <span id="sync-status" class="loading">(Sincronizado)</span>`;
+            tituloStat.innerHTML = `<span data-i18n="titleConsolidated">Relatório Consolidado</span>  <span id="sync-status" class="loading">(Sincronizado)</span>`;
         }
     }
 
@@ -626,24 +954,8 @@
         const hojeStr = obterDataAtualStr();
         document.getElementById('dataInsercao').value = hojeStr;
         document.getElementById('filtroData').value = hojeStr;
-        
-        const doseSalva = localStorage.getItem('dosePadraoLoteConfig');
-        if (doseSalva) document.getElementById('dosePadraoLote').value = doseSalva;
-
-        const fatorSalvo = localStorage.getItem('fatorSubtleConfig');
-        if (fatorSalvo) document.getElementById('fatorSubtle').value = fatorSalvo;
-
-        const radioSalvo = localStorage.getItem('radiofarmacoConfig');
-        if (radioSalvo) {
-            document.getElementById('radiofarmaco').value = radioSalvo;
-            aoMudarRadiofarmaco();
-        }
-
-        const meiaCustomSalva = localStorage.getItem('meiaVidaCustomConfig');
-        if (meiaCustomSalva) document.getElementById('meiaVidaCustom').value = meiaCustomSalva;
 
         setInterval(carregarDadosNuvemBackground, 15000);
-        atualizarInfoFator();
 
         const inputHora = document.getElementById('inputHoraRapida');
         inputHora.addEventListener('input', function(e) {
@@ -709,35 +1021,15 @@
         let percentual = Math.round((1 - valFator) * 100);
         if (percentual > 0) {
             divInfo.style.color = "#059669";
-            divInfo.innerText = `📉 Economia de ${percentual}% da dose`;
+            divInfo.innerText = `📉 ` + i18n[idiomaAtual].savingsText.replace('{val}', percentual);
         } else if (percentual < 0) {
             let aumento = Math.abs(percentual);
             divInfo.style.color = "#d97706";
-            divInfo.innerText = `📈 Aumento de ${aumento}% da dose`;
+            divInfo.innerText = `📈 ` + i18n[idiomaAtual].increaseText.replace('{val}', aumento);
         } else {
             divInfo.style.color = "#64748b";
-            divInfo.innerText = `⚖️ Dose Padrão (100%)`;
+            divInfo.innerText = `⚖️ ` + i18n[idiomaAtual].standardDoseText;
         }
-    }
-
-    function salvarConfiguracoesPadrao() {
-        const valDose = document.getElementById('dosePadraoLote').value;
-        const valFator = document.getElementById('fatorSubtle').value;
-        const valRadio = document.getElementById('radiofarmaco').value;
-        const valMeiaCustom = document.getElementById('meiaVidaCustom').value;
-
-        if (!valDose || isNaN(valDose) || parseFloat(valDose) <= 0) {
-            alert("Insira um valor válido para a dose padrão.");
-            return;
-        }
-
-        localStorage.setItem('dosePadraoLoteConfig', valDose);
-        localStorage.setItem('fatorSubtleConfig', valFator);
-        localStorage.setItem('radiofarmacoConfig', valRadio);
-        localStorage.setItem('meiaVidaCustomConfig', valMeiaCustom);
-
-        alert("Configurações padrão salvas com sucesso!");
-        processarSimulacaoCompleta();
     }
 
     function obterDataAtualStr() {
@@ -849,10 +1141,10 @@
 
             const a0Inicial = parseFloat(document.getElementById('dosePadraoLote').value) || 10;
             const tetoMaximo = a0Inicial * 2.5;
-            document.getElementById('tituloGraficoTeto').innerText = `Curva do Decaimento e Reposições (Lote Padrão: ${a0Inicial} mCi)`;
+            document.getElementById('tituloGraficoTeto').innerText = `${i18n[idiomaAtual].titleChart} (Lote Padrão: ${a0Inicial} mCi)`;
 
             if (!textoPacientes) {
-                document.getElementById('textoResultadoSimulacao').innerHTML = "Aguardando inserção de dados dos pacientes...";
+                document.getElementById('textoResultadoSimulacao').innerHTML = i18n[idiomaAtual].msgWaitingData;
                 document.getElementById('listaPedido').value = "";
                 if (meuGrafico) meuGrafico.destroy();
                 return;
@@ -1013,7 +1305,7 @@
                 data: {
                     datasets: [
                         {
-                            label: 'Atividade Restante A(t) [mCi]',
+                            label: i18n[idiomaAtual].datasetRemaining,
                             data: dadosCurva,
                             infoPacientePre: dadosAtividadePre,
                             borderColor: '#3b82f6',
@@ -1025,7 +1317,7 @@
                             pointHoverRadius: 4
                         },
                         {
-                            label: 'Pacientes',
+                            label: i18n[idiomaAtual].datasetPatients,
                             data: dadosPacientesPuntos,
                             borderColor: 'transparent',
                             backgroundColor: '#ef4444',
@@ -1036,7 +1328,7 @@
                             showLine: false
                         },
                         {
-                            label: 'Dose Estoque',
+                            label: i18n[idiomaAtual].datasetStock,
                             data: dadosDosesAutoAcima,
                             borderColor: 'transparent',
                             backgroundColor: '#3b82f6',
@@ -1048,7 +1340,7 @@
                             showLine: false
                         },
                         {
-                            label: 'Doses Extras',
+                            label: i18n[idiomaAtual].datasetExtra,
                             data: dadosDosesExtrasAcima,
                             borderColor: 'transparent',
                             backgroundColor: '#f59e0b',
@@ -1065,7 +1357,6 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    // Permite interagir em qualquer ponto horizontal da tela do gráfico facilmente
                     interaction: {
                         mode: 'index',
                         intersect: false,
@@ -1082,20 +1373,20 @@
                                     let minutosTotais = context.parsed.x;
                                     let horarioStr = minutosParaHoraStr(minutosTotais);
 
-                                    if (label === 'Dose Estoque' || label === 'Doses Extras') {
+                                    if (label === i18n[idiomaAtual].datasetStock || label === i18n[idiomaAtual].datasetExtra) {
                                         let infoRes = detalhesResiduosMap[horarioStr];
                                         if (infoRes) {
                                             return [
-                                                `Dose Estoque: ${infoRes.totalEstoque.toFixed(2).replace('.', ',')} mCi`,
-                                                `• Dose Automática: ${infoRes.doseAuto.toFixed(2).replace('.', ',')} mCi`,
-                                                `• Resíduo Anterior: ${infoRes.residuo.toFixed(2).replace('.', ',')} mCi`
+                                                `${i18n[idiomaAtual].datasetStock}: ${infoRes.totalEstoque.toFixed(2).replace('.', ',')} mCi`,
+                                                `• Auto: ${infoRes.doseAuto.toFixed(2).replace('.', ',')} mCi`,
+                                                `• Resíduo: ${infoRes.residuo.toFixed(2).replace('.', ',')} mCi`
                                             ];
                                         }
                                         let valY = context.parsed.y;
-                                        return `Dose Estoque: ${valY.toFixed(2).replace('.', ',')} mCi`;
+                                        return `${i18n[idiomaAtual].datasetStock}: ${valY.toFixed(2).replace('.', ',')} mCi`;
                                     }
 
-                                    if (label === 'Pacientes') {
+                                    if (label === i18n[idiomaAtual].datasetPatients) {
                                         const index = context.dataIndex;
                                         const dataset0 = context.chart.data.datasets[0];
                                         const infoP = dataset0.infoPacientePre ? dataset0.infoPacientePre[index] : null;
@@ -1115,7 +1406,7 @@
                                         return linhasTooltip;
                                     }
 
-                                    if (label === 'Atividade Restante A(t) [mCi]') {
+                                    if (label === i18n[idiomaAtual].datasetRemaining) {
                                         if (context.parsed.y !== null) {
                                             let val = context.parsed.y;
                                             if (val < 0) val = 0;
@@ -1142,7 +1433,7 @@
 
                             if (datasetIndex === 2) {
                                 const res = await abrirDialogo({
-                                    titulo: 'Dose Estoque (Automática)',
+                                    titulo: i18n[idiomaAtual].datasetStock,
                                     mensagem: `Dose Automática às ${horarioClicado}.\nDigite o NOVO HORÁRIO (HH:MM):`,
                                     inputs: [{ value: horarioClicado, placeholder: 'HH:MM' }]
                                 });
@@ -1159,7 +1450,7 @@
 
                             if (datasetIndex === 3) {
                                 const res = await abrirDialogo({
-                                    titulo: 'Dose Extra',
+                                    titulo: i18n[idiomaAtual].datasetExtra,
                                     mensagem: `Dose Extra às ${horarioClicado}.\nO que deseja fazer?`,
                                     inputs: [{ value: '1', placeholder: '1-Alterar / 2-Remover' }]
                                 });
@@ -1261,12 +1552,12 @@
                         y: { 
                             beginAtZero: true, 
                             max: tetoMaximo * 1.15, 
-                            title: { display: true, text: 'Atividade (mCi)' } 
+                            title: { display: true, text: i18n[idiomaAtual].chartYTitle } 
                         },
                         x: { 
                             type: 'linear',
                             position: 'bottom',
-                            title: { display: true, text: 'Horário Proporcional (🔴 Pacientes | 🔵 Dose Estoque | 🟠 Doses Extras)' },
+                            title: { display: true, text: i18n[idiomaAtual].chartXTitle },
                             ticks: {
                                 callback: function(value) {
                                     return minutosParaHoraStr(value);
@@ -1283,10 +1574,13 @@
             let economiaDia = totalPacientesAtual - totalQtdPedidos;
             if (economiaDia < 0) economiaDia = 0;
 
-            document.getElementById('textoResultadoSimulacao').innerHTML = `
-                Simulação concluída! (Fator: <strong>${subtle}</strong> | Lote: <strong>${a0Inicial} mCi</strong>)<br>
-                <strong>Pedidos:</strong> ${totalQtdPedidos} | <strong>Economia do dia:</strong> ${economiaDia}
-            `;
+            let textoSimul = i18n[idiomaAtual].simCompleted
+                .replace('{subtle}', subtle)
+                .replace('{a0}', a0Inicial)
+                .replace('{qtd}', totalQtdPedidos)
+                .replace('{econ}', economiaDia);
+
+            document.getElementById('textoResultadoSimulacao').innerHTML = textoSimul;
 
             gerarListaPedido(pacientes, pedidosReposicao);
 
