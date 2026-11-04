@@ -136,7 +136,7 @@
             image-rendering: -webkit-optimize-contrast;
         }
 
-        label { display: block; margin-top: 10px; font-weight: 600; color: #334155; font-size: 13px; }
+        label { display: block; margin-top: 10px; font-weight: 600; color: #334155; font-size: 11.5px; }
         input, select, textarea { width: 100%; padding: 9px; margin-top: 4px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fcfcfc; }
         
         button { margin-top: 10px; width: 100%; padding: 9px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s; }
@@ -302,11 +302,11 @@
                 <input type="number" id="meiaVidaCustom" value="109.8" step="0.1" min="0.1" oninput="aoDigitarPacientes()">
             </div>
             <div>
-                <label for="razaoRotina" data-i18n="lblRazaoRotina">Clínica - Razão (Rrotina) [mCi/kg]:</label>
+                <label for="razaoRotina" data-i18n="lblRazaoRotina">Clínica - Razão atividade/massa (Rrotina) [mCi/kg]:</label>
                 <input type="number" id="razaoRotina" value="0.12" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.12">
             </div>
             <div>
-                <label for="razaoRIA" data-i18n="lblRazaoRIA">IA - Razão (RIA) [mCi/kg]:</label>
+                <label for="razaoRIA" data-i18n="lblRazaoRIA">IA - Razão atividade/massa (RIA) [mCi/kg]:</label>
                 <input type="number" id="razaoRIA" value="0.08" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.08">
                 <div id="infoFatorTexto" class="info-status-fator">Fator: 0.667 (Economia de 33,3%)</div>
                 <input type="hidden" id="fatorSubtle" value="0.667">
@@ -345,7 +345,7 @@
         🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante).<br>
         🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior).<br>
         🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais.<br>
-        ✨ <b>Passe o mouse em qualquer área do gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.
+        ✨ <b>Passe o mouse em qualquer área del gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.
     </p>
     <div class="chart-container">
         <canvas id="graficoDecaimento"></canvas>
@@ -412,8 +412,8 @@
             optLu: "¹⁷⁷Lu - Lutécio (Meia-vida: 6.64 dias)",
             optCustom: "Outro (Meia-Vida personalizada)",
             lblHalfLifeCustom: "Meia-Vida Custom (min):",
-            lblRazaoRotina: "Clínica - Razão (Rrotina) [mCi/kg]:",
-            lblRazaoRIA: "IA - Razão (RIA) [mCi/kg]:",
+            lblRazaoRotina: "Clínica - Razão atividade/massa (Rrotina) [mCi/kg]:",
+            lblRazaoRIA: "IA - Razão atividade/massa (RIA) [mCi/kg]:",
             lblBatchDose: "Dose Inicial do Lote (mCi):",
             btnSaveDefaults: "Salvar Configurações no Banco",
             lblQuickAdd: "Adicionar Paciente Rápido (Máscara automática):",
