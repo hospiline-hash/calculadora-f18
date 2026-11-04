@@ -272,7 +272,6 @@
         <h2 data-i18n="titlePatientsList">Lista de Pacientes do Dia</h2>
         <div class="lang-selector-container">
             <button type="button" id="btnLangPt" class="lang-btn active" onclick="mudarIdioma('pt')">PT</button>
-            <button type="button" id="btnLangEn" class="lang-btn" onclick="mudarIdioma('en')">EN</button>
             <button type="button" id="btnLangEs" class="lang-btn" onclick="mudarIdioma('es')">ES</button>
         </div>
     </div>
@@ -303,9 +302,14 @@
                 <input type="number" id="meiaVidaCustom" value="109.8" step="0.1" min="0.1" oninput="aoDigitarPacientes()">
             </div>
             <div>
-                <label for="fatorSubtle" data-i18n="lblFactor">Fator de Redução (Subtle AI):</label>
-                <input type="number" id="fatorSubtle" value="0.8" step="0.05" min="0.1" max="2.0" oninput="atualizarInfoFator(); aoDigitarPacientes();" placeholder="Ex: 0.8">
-                <div id="infoFatorTexto" class="info-status-fator">Economia de 20%</div>
+                <label for="razaoRotina" data-i18n="lblRazaoRotina">Clínica - Razão (Rrotina) [mCi/kg]:</label>
+                <input type="number" id="razaoRotina" value="0.12" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.12">
+            </div>
+            <div>
+                <label for="razaoRIA" data-i18n="lblRazaoRIA">IA - Razão (RIA) [mCi/kg]:</label>
+                <input type="number" id="razaoRIA" value="0.08" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.08">
+                <div id="infoFatorTexto" class="info-status-fator">Fator: 0.667 (Economia de 33,3%)</div>
+                <input type="hidden" id="fatorSubtle" value="0.667">
             </div>
             <div>
                 <label for="dosePadraoLote" data-i18n="lblBatchDose">Dose Inicial do Lote (mCi):</label>
@@ -408,7 +412,8 @@
             optLu: "¹⁷⁷Lu - Lutécio (Meia-vida: 6.64 dias)",
             optCustom: "Outro (Meia-Vida personalizada)",
             lblHalfLifeCustom: "Meia-Vida Custom (min):",
-            lblFactor: "Fator de Redução (Subtle AI):",
+            lblRazaoRotina: "Clínica - Razão (Rrotina) [mCi/kg]:",
+            lblRazaoRIA: "IA - Razão (RIA) [mCi/kg]:",
             lblBatchDose: "Dose Inicial do Lote (mCi):",
             btnSaveDefaults: "Salvar Configurações no Banco",
             lblQuickAdd: "Adicionar Paciente Rápido (Máscara automática):",
@@ -442,10 +447,10 @@
             loading: "Carregando dados...",
             errSave: "(Erro ao salvar)",
             errLoad: "(Erro ao carregar)",
-            savingsText: "Economia de {val}% da dose",
-            increaseText: "Aumento de {val}% da dose",
-            standardDoseText: "Dose Padrão (100%)",
-            simCompleted: "Simulação concluída! (Fator: <strong>{subtle}</strong> | Lote: <strong>{a0} mCi</strong>)<br><strong>Pedidos:</strong> {qtd} | <strong>Economia do dia:</strong> {econ}",
+            savingsText: "Fator: {fator} (Economia de {val}% da dose)",
+            increaseText: "Fator: {fator} (Aumento de {val}% da dose)",
+            standardDoseText: "Fator: 1.00 (Dose Padrão)",
+            simCompleted: "Simulação concluída! (Razão Rotina: <strong>{rotina}</strong> | RIA: <strong>{ria}</strong> | Lote: <strong>{a0} mCi</strong>)<br><strong>Pedidos:</strong> {qtd} | <strong>Economia do dia:</strong> {econ}",
             patientsAttended: "pacientes atendidos",
             noRecords: "Nenhum registro nos últimos 7 dias.",
             datasetRemaining: "Atividade Restante A(t) [mCi]",
@@ -454,67 +459,6 @@
             datasetExtra: "Doses Extras",
             chartXTitle: "Horário Proporcional (🔴 Pacientes | 🔵 Dose Estoque | 🟠 Doses Extras)",
             chartYTitle: "Atividade (mCi)"
-        },
-        en: {
-            pageTitle: "Decay and Replenishment Calculator - Radio-Management",
-            printTitle: "Consolidated Management Report - Radio-Management",
-            titlePatientsList: "Daily Patients List",
-            lblDateInsertion: "Insertion / Service Date:",
-            lblDateHistory: "Check History (View):",
-            lblRadiopharm: "Radiopharmaceutical (Isotope):",
-            optFDG: "¹⁸F-FDG (Half-life: 109.8 min)",
-            optTc: "⁹⁹ᵐTc - Technetium (Half-life: 360 min)",
-            optGa: "⁶⁸Ga - Gallium (Half-life: 68 min)",
-            optI: "¹³¹I - Iodine (Half-life: 8 days)",
-            optLu: "¹⁷⁷Lu - Lutetium (Half-life: 6.64 days)",
-            optCustom: "Other (Custom Half-life)",
-            lblHalfLifeCustom: "Custom Half-Life (min):",
-            lblFactor: "Reduction Factor (Subtle AI):",
-            lblBatchDose: "Initial Batch Dose (mCi):",
-            btnSaveDefaults: "Save Settings to DB",
-            lblQuickAdd: "Quick Add Patient (Auto mask):",
-            phQuickTime: "Time (e.g. 0730)",
-            phQuickWeight: "Weight in kg (e.g. 80)",
-            btnAddQuick: "+ Add",
-            hintQuickAdd: "Tip: Type only time numbers (e.g. 0800) and colon adds automatically.",
-            lblFullList: "Full List (HH:MM = Weight) | Editable:",
-            msgWaitingData: "Waiting for patient data entry...",
-            titleChart: "Decay and Replenishment Curve",
-            legendChart: "🔴 <b>Red Dots:</b> Patients (Shows weight, applied dose, remaining activity).<br>🔵 <b>Blue Dots (Above):</b> Stock Dose (Sum of Auto Dose + Previous Residue).<br>🟠 <b>Orange Dots (Above):</b> Manual Extra Doses.<br>✨ <b>Hover over graph</b> to see exact time and stock. Click to add or manage events.",
-            titleOrderList: "Order List (Distributor - TXT)",
-            lblOrderRule: "Distributor Schedule Rule:",
-            optExactTime: "Exact Time (e.g. 08:00, 09:00, 09:30)",
-            optHourly: "Hourly (Advance / Consolidated - e.g. 09:00 (2 doses))",
-            btnDownloadTxt: "Download List as TXT",
-            btnPrintOrder: "Print Order Only",
-            titleConsolidated: "Consolidated Report",
-            lblTotalPatients: "Total Patients Served (7 days):",
-            lblSavedDoses: "Saved Doses (Estimate):",
-            titleDailyDetails: "Daily Breakdown (Last 7 Days):",
-            btnPrintPdf: "Print / Save Summary (PDF)",
-            btnClearHistory: "Clear / Reset Old History",
-            footerCopyright: "Copyright © 2026 Hospiline. All rights reserved - Version 4.9",
-            btnCancel: "Cancel",
-            btnOk: "OK",
-            saving: "(Saving...)",
-            saved: "(Saved to cloud)",
-            typing: "(Typing...)",
-            synchronized: "(Synchronized)",
-            loading: "Loading data...",
-            errSave: "(Error saving)",
-            errLoad: "(Error loading)",
-            savingsText: "Dose savings of {val}%",
-            increaseText: "Dose increase of {val}%",
-            standardDoseText: "Standard Dose (100%)",
-            simCompleted: "Simulation completed! (Factor: <strong>{subtle}</strong> | Batch: <strong>{a0} mCi</strong>)<br><strong>Orders:</strong> {qtd} | <strong>Day Savings:</strong> {econ}",
-            patientsAttended: "patients served",
-            noRecords: "No records in the last 7 days.",
-            datasetRemaining: "Remaining Activity A(t) [mCi]",
-            datasetPatients: "Patients",
-            datasetStock: "Stock Dose",
-            datasetExtra: "Extra Doses",
-            chartXTitle: "Proportional Time (🔴 Patients | 🔵 Stock Dose | 🟠 Extra Doses)",
-            chartYTitle: "Activity (mCi)"
         },
         es: {
             pageTitle: "Calculadora de Decaimiento y Reposición - Radio-Gestión",
@@ -530,7 +474,8 @@
             optLu: "¹⁷⁷Lu - Lutecio (Semivida: 6.64 días)",
             optCustom: "Otro (Semivida personalizada)",
             lblHalfLifeCustom: "Semivida Personalizada (min):",
-            lblFactor: "Factor de Reducción (Subtle AI):",
+            lblRazaoRotina: "Clínica - Relación actividad/masa (Rrotina) [mCi/kg]:",
+            lblRazaoRIA: "IA - Relación actividad/masa (RIA) [mCi/kg]:",
             lblBatchDose: "Dosis Inicial del Lote (mCi):",
             btnSaveDefaults: "Guardar Config en BD",
             lblQuickAdd: "Agregar Paciente Rápido (Máscara auto):",
@@ -545,7 +490,7 @@
             titleOrderList: "Lista para Pedido (Distribuidora - TXT)",
             lblOrderRule: "Regra de Horario para Distribuidora:",
             optExactTime: "Horario Exacto (Ej: 08:00, 09:00, 09:30)",
-            optHourly: "Cada Hora (Anticipado / Consolidado - Ej: 09:00 (2 dosis))",
+            optHourly: "Cada Hora (Anticipado / Consolidado - Ej: 09:00 (2 doses))",
             btnDownloadTxt: "Descargar Lista en TXT",
             btnPrintOrder: "Imprimir Solo Pedido",
             titleConsolidated: "Informe Consolidado",
@@ -564,10 +509,10 @@
             loading: "Cargando datos...",
             errSave: "(Error al guardar)",
             errLoad: "(Error al cargar)",
-            savingsText: "Ahorro de {val}% de la dosis",
-            increaseText: "Aumento de {val}% de la dosis",
-            standardDoseText: "Dosis Estándar (100%)",
-            simCompleted: "¡Simulación completada! (Factor: <strong>{subtle}</strong> | Lote: <strong>{a0} mCi</strong>)<br><strong>Pedidos:</strong> {qtd} | <strong>Ahorro del día:</strong> {econ}",
+            savingsText: "Factor: {fator} (Ahorro de {val}% de la dosis)",
+            increaseText: "Factor: {fator} (Aumento de {val}% de la dosis)",
+            standardDoseText: "Factor: 1.00 (Dosis Estándar)",
+            simCompleted: "¡Simulación completada! (Rotina: <strong>{rotina}</strong> | RIA: <strong>{ria}</strong> | Lote: <strong>{a0} mCi</strong>)<br><strong>Pedidos:</strong> {qtd} | <strong>Ahorro del día:</strong> {econ}",
             patientsAttended: "pacientes atendidos",
             noRecords: "Sin registros en los últimos 7 días.",
             datasetRemaining: "Actividad Restante A(t) [mCi]",
@@ -605,14 +550,12 @@
         document.getElementById('inputPesoRapido').placeholder = i18n[lang].phQuickWeight;
         
         document.getElementById('btnLangPt').classList.remove('active');
-        document.getElementById('btnLangEn').classList.remove('active');
         document.getElementById('btnLangEs').classList.remove('active');
 
         if (lang === 'pt') document.getElementById('btnLangPt').classList.add('active');
-        if (lang === 'en') document.getElementById('btnLangEn').classList.add('active');
         if (lang === 'es') document.getElementById('btnLangEs').classList.add('active');
 
-        atualizarInfoFator();
+        recalcularFatorAutomatico();
         atualizarRelatorioConsolidado();
         processarSimulacaoCompleta();
     }
@@ -754,7 +697,8 @@
             if (estado.banco.configuracoesGlobais) {
                 const cfg = estado.banco.configuracoesGlobais;
                 if (cfg.dosePadraoLote) document.getElementById('dosePadraoLote').value = cfg.dosePadraoLote;
-                if (cfg.fatorSubtle) document.getElementById('fatorSubtle').value = cfg.fatorSubtle;
+                if (cfg.razaoRotina) document.getElementById('razaoRotina').value = cfg.razaoRotina;
+                if (cfg.razaoRIA) document.getElementById('razaoRIA').value = cfg.razaoRIA;
                 if (cfg.radiofarmaco) {
                     document.getElementById('radiofarmaco').value = cfg.radiofarmaco;
                     aoMudarRadiofarmaco();
@@ -762,6 +706,7 @@
                 if (cfg.meiaVidaCustom) document.getElementById('meiaVidaCustom').value = cfg.meiaVidaCustom;
             }
             
+            recalcularFatorAutomatico();
             atualizarRelatorioConsolidado();
             carregarDadosPorData();
             
@@ -817,6 +762,8 @@
         const dataSelecionada = document.getElementById('filtroData').value;
         const textoPacientes = document.getElementById('listaPacientes').value;
         const radiofarmaco = document.getElementById('radiofarmaco').value;
+        const razaoRotina = document.getElementById('razaoRotina').value;
+        const razaoRIA = document.getElementById('razaoRIA').value;
         const fatorSubtle = document.getElementById('fatorSubtle').value;
         const meiaVidaCustom = document.getElementById('meiaVidaCustom').value;
         const dosePadraoLote = document.getElementById('dosePadraoLote').value;
@@ -828,6 +775,8 @@
         estado.banco.historicoDias[dataSelecionada] = {
             textoPacientes,
             radiofarmaco,
+            razaoRotina,
+            razaoRIA,
             fatorSubtle,
             meiaVidaCustom,
             dosePadraoLote,
@@ -854,7 +803,8 @@
 
     async function salvarConfiguracoesPadrao() {
         const valDose = document.getElementById('dosePadraoLote').value;
-        const valFator = document.getElementById('fatorSubtle').value;
+        const valRotina = document.getElementById('razaoRotina').value;
+        const valRIA = document.getElementById('razaoRIA').value;
         const valRadio = document.getElementById('radiofarmaco').value;
         const valMeiaCustom = document.getElementById('meiaVidaCustom').value;
 
@@ -869,7 +819,8 @@
 
         estado.banco.configuracoesGlobais = {
             dosePadraoLote: valDose,
-            fatorSubtle: valFator,
+            razaoRotina: valRotina,
+            razaoRIA: valRIA,
             radiofarmaco: valRadio,
             meiaVidaCustom: valMeiaCustom
         };
@@ -930,7 +881,7 @@
                         let qtdDia = linhas.length;
                         totalPacientes += qtdDia;
                         
-                        let fator = parseFloat(dia.fatorSubtle) || 0.8;
+                        let fator = parseFloat(dia.fatorSubtle) || 0.667;
                         let economiaDia = qtdDia * (10 * (1 - fator)); 
                         totalEconomia += Math.max(0, economiaDia);
 
@@ -971,6 +922,8 @@
                 adicionarPacienteRapido();
             }
         });
+        
+        recalcularFatorAutomatico();
     };
 
     function adicionarPacienteRapido() {
@@ -1009,26 +962,37 @@
         processarSimulacaoCompleta();
     }
 
-    function atualizarInfoFator() {
-        const valFator = parseFloat(document.getElementById('fatorSubtle').value);
+    function recalcularFatorAutomatico() {
+        const rotina = parseFloat(document.getElementById('razaoRotina').value);
+        const ria = parseFloat(document.getElementById('razaoRIA').value);
         const divInfo = document.getElementById('infoFatorTexto');
-        
-        if (isNaN(valFator)) {
-            divInfo.innerText = "";
+        const inputFatorOculto = document.getElementById('fatorSubtle');
+
+        if (!rotina || rotina <= 0 || !ria || ria <= 0 || isNaN(rotina) || isNaN(ria)) {
+            divInfo.innerText = "Informe valores válidos para cálculo.";
             return;
         }
 
-        let percentual = Math.round((1 - valFator) * 100);
-        if (percentual > 0) {
+        let fatorCalculado = ria / rotina;
+        inputFatorOculto.value = fatorCalculado;
+
+        let percentualExato = ((1 - fatorCalculado) * 100).toFixed(1);
+        let fatorStr = fatorCalculado.toFixed(3);
+
+        if (parseFloat(percentualExato) > 0) {
             divInfo.style.color = "#059669";
-            divInfo.innerText = `📉 ` + i18n[idiomaAtual].savingsText.replace('{val}', percentual);
-        } else if (percentual < 0) {
-            let aumento = Math.abs(percentual);
+            divInfo.innerText = i18n[idiomaAtual].savingsText
+                .replace('{fator}', fatorStr)
+                .replace('{val}', percentualExato.replace('.', ','));
+        } else if (parseFloat(percentualExato) < 0) {
+            let aumento = Math.abs(parseFloat(percentualExato)).toFixed(1);
             divInfo.style.color = "#d97706";
-            divInfo.innerText = `📈 ` + i18n[idiomaAtual].increaseText.replace('{val}', aumento);
+            divInfo.innerText = i18n[idiomaAtual].increaseText
+                .replace('{fator}', fatorStr)
+                .replace('{val}', aumento.replace('.', ','));
         } else {
             divInfo.style.color = "#64748b";
-            divInfo.innerText = `⚖️ ` + i18n[idiomaAtual].standardDoseText;
+            divInfo.innerText = i18n[idiomaAtual].standardDoseText;
         }
     }
 
@@ -1113,9 +1077,14 @@
                 document.getElementById('radiofarmaco').value = dadosDia.radiofarmaco;
                 aoMudarRadiofarmaco();
             }
+            if (dadosDia.razaoRotina) {
+                document.getElementById('razaoRotina').value = dadosDia.razaoRotina;
+            }
+            if (dadosDia.razaoRIA) {
+                document.getElementById('razaoRIA').value = dadosDia.razaoRIA;
+            }
             if (dadosDia.fatorSubtle) {
                 document.getElementById('fatorSubtle').value = dadosDia.fatorSubtle;
-                atualizarInfoFator();
             }
             if (dadosDia.meiaVidaCustom) {
                 document.getElementById('meiaVidaCustom').value = dadosDia.meiaVidaCustom;
@@ -1128,6 +1097,7 @@
             estado.cache.reposicoesExtras[dataSelecionada] = [];
             estado.cache.overridesAuto[dataSelecionada] = {};
         }
+        recalcularFatorAutomatico();
         processarSimulacaoCompleta();
         estado.carregandoRemoto = false;
     }
@@ -1150,9 +1120,12 @@
                 return;
             }
 
-            const inputSubtle = document.getElementById('fatorSubtle');
-            const subtle = inputSubtle ? parseFloat(inputSubtle.value) || 0.8 : 0.8;
+            const razaoRotinaVal = parseFloat(document.getElementById('razaoRotina').value) || 0.12;
+            const razaoRIAVal = parseFloat(document.getElementById('razaoRIA').value) || 0.08;
             
+            const fatorSubtleCalculado = razaoRIAVal / razaoRotinaVal;
+            document.getElementById('fatorSubtle').value = fatorSubtleCalculado;
+
             const meiaVidaMin = obterMeiaVidaMinutos();
             const lambda = 0.693 / meiaVidaMin;
             let pacientes = [];
@@ -1162,7 +1135,7 @@
                 if (p) {
                     pacientes.push({
                         ...p,
-                        doseNecessaria: p.peso * 0.1 * subtle
+                        doseNecessaria: p.peso * razaoRotinaVal * fatorSubtleCalculado
                     });
                 }
             });
@@ -1575,7 +1548,8 @@
             if (economiaDia < 0) economiaDia = 0;
 
             let textoSimul = i18n[idiomaAtual].simCompleted
-                .replace('{subtle}', subtle)
+                .replace('{rotina}', razaoRotinaVal)
+                .replace('{ria}', razaoRIAVal)
                 .replace('{a0}', a0Inicial)
                 .replace('{qtd}', totalQtdPedidos)
                 .replace('{econ}', economiaDia);
