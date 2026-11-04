@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 
         const firebaseConfig = {
@@ -29,9 +29,10 @@
         window.fbRef = ref;
         window.fbGet = get;
         window.fbSet = set;
+        window.fbOnValue = onValue;
         
-        if (typeof carregarDadosNuvemInicial === 'function') {
-            carregarDadosNuvemInicial();
+        if (typeof iniciarEscutaTempoReal === 'function') {
+            iniciarEscutaTempoReal();
         }
     </script>
     <style>
@@ -136,7 +137,7 @@
             image-rendering: -webkit-optimize-contrast;
         }
 
-        label { display: block; margin-top: 10px; font-weight: 600; color: #334155; font-size: 11.5px; }
+        label { display: block; margin-top: 10px; font-weight: 600; color: #334155; font-size: 13px; }
         input, select, textarea { width: 100%; padding: 9px; margin-top: 4px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fcfcfc; }
         
         button { margin-top: 10px; width: 100%; padding: 9px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s; }
@@ -302,11 +303,11 @@
                 <input type="number" id="meiaVidaCustom" value="109.8" step="0.1" min="0.1" oninput="aoDigitarPacientes()">
             </div>
             <div>
-                <label for="razaoRotina" data-i18n="lblRazaoRotina">Clínica - Razão atividade/massa (Rrotina) [mCi/kg]:</label>
+                <label for="razaoRotina" data-i18n="lblRazaoRotina">Clínica - Razão (Rrotina) [mCi/kg]:</label>
                 <input type="number" id="razaoRotina" value="0.12" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.12">
             </div>
             <div>
-                <label for="razaoRIA" data-i18n="lblRazaoRIA">IA - Razão atividade/massa (RIA) [mCi/kg]:</label>
+                <label for="razaoRIA" data-i18n="lblRazaoRIA">IA - Razão (RIA) [mCi/kg]:</label>
                 <input type="number" id="razaoRIA" value="0.08" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.08">
                 <div id="infoFatorTexto" class="info-status-fator">Fator: 0.667 (Economia de 33,3%)</div>
                 <input type="hidden" id="fatorSubtle" value="0.667">
@@ -345,7 +346,7 @@
         🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante).<br>
         🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior).<br>
         🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais.<br>
-        ✨ <b>Passe o mouse em qualquer área del gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.
+        ✨ <b>Passe o mouse em qualquer área do gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.
     </p>
     <div class="chart-container">
         <canvas id="graficoDecaimento"></canvas>
@@ -412,8 +413,8 @@
             optLu: "¹⁷⁷Lu - Lutécio (Meia-vida: 6.64 dias)",
             optCustom: "Outro (Meia-Vida personalizada)",
             lblHalfLifeCustom: "Meia-Vida Custom (min):",
-            lblRazaoRotina: "Clínica - Razão atividade/massa (Rrotina) [mCi/kg]:",
-            lblRazaoRIA: "IA - Razão atividade/massa (RIA) [mCi/kg]:",
+            lblRazaoRotina: "Clínica - Razão (Rrotina) [mCi/kg]:",
+            lblRazaoRIA: "IA - Razão (RIA) [mCi/kg]:",
             lblBatchDose: "Dose Inicial do Lote (mCi):",
             btnSaveDefaults: "Salvar Configurações no Banco",
             lblQuickAdd: "Adicionar Paciente Rápido (Máscara automática):",
@@ -664,25 +665,19 @@
         });
     }
 
-    async function carregarDadosNuvemInicial() {
+    // Escuta em Tempo Real do Firebase: atualiza automaticamente a tela se houver dados salvos
+    function iniciarEscutaTempoReal() {
         const statusEl = document.getElementById('sync-status');
         statusEl.innerText = "Carregando dados...";
         statusEl.className = "loading";
 
-        let tentativas = 0;
-        while (!window.fbDb && tentativas < 25) {
-            await new Promise(r => setTimeout(r, 200));
-            tentativas++;
-        }
-
-        if (!window.fbDb) {
+        if (!window.fbDb || !window.fbOnValue) {
             statusEl.innerText = "(Erro de conexão Firebase)";
             statusEl.className = "sync-status";
             return;
         }
 
-        try {
-            const snapshot = await window.fbGet(getBancoRef());
+        window.fbOnValue(getBancoRef(), (snapshot) => {
             if (snapshot.exists()) {
                 estado.banco = snapshot.val() || { historicoDias: {}, idiomaGlobal: 'pt', configuracoesGlobais: {} };
                 limparHistoricoAntigoNoBanco();
@@ -690,50 +685,45 @@
                 estado.banco = { historicoDias: {}, idiomaGlobal: 'pt', configuracoesGlobais: {} };
             }
 
-            if (estado.banco.idiomaGlobal) {
+            if (estado.banco.idiomaGlobal && estado.banco.idiomaGlobal !== idiomaAtual) {
                 mudarIdioma(estado.banco.idiomaGlobal);
             }
 
             if (estado.banco.configuracoesGlobais) {
                 const cfg = estado.banco.configuracoesGlobais;
-                if (cfg.dosePadraoLote) document.getElementById('dosePadraoLote').value = cfg.dosePadraoLote;
-                if (cfg.razaoRotina) document.getElementById('razaoRotina').value = cfg.razaoRotina;
-                if (cfg.razaoRIA) document.getElementById('razaoRIA').value = cfg.razaoRIA;
+                if (cfg.dosePadraoLote && document.activeElement !== document.getElementById('dosePadraoLote')) {
+                    document.getElementById('dosePadraoLote').value = cfg.dosePadraoLote;
+                }
+                if (cfg.razaoRotina && document.activeElement !== document.getElementById('razaoRotina')) {
+                    document.getElementById('razaoRotina').value = cfg.razaoRotina;
+                }
+                if (cfg.razaoRIA && document.activeElement !== document.getElementById('razaoRIA')) {
+                    document.getElementById('razaoRIA').value = cfg.razaoRIA;
+                }
                 if (cfg.radiofarmaco) {
                     document.getElementById('radiofarmaco').value = cfg.radiofarmaco;
                     aoMudarRadiofarmaco();
                 }
-                if (cfg.meiaVidaCustom) document.getElementById('meiaVidaCustom').value = cfg.meiaVidaCustom;
+                if (cfg.meiaVidaCustom && document.activeElement !== document.getElementById('meiaVidaCustom')) {
+                    document.getElementById('meiaVidaCustom').value = cfg.meiaVidaCustom;
+                }
             }
             
             recalcularFatorAutomatico();
             atualizarRelatorioConsolidado();
-            carregarDadosPorData();
+            
+            // Se o usuário não estiver digitando na lista neste momento, atualiza com os dados vindos do banco
+            if (document.activeElement !== document.getElementById('listaPacientes') && !estado.salvando) {
+                carregarDadosPorData();
+            }
             
             statusEl.innerText = "(Sincronizado)";
             statusEl.className = "sync-status";
-        } catch (error) {
-            console.error("Erro ao carregar do Firebase:", error);
+        }, (error) => {
+            console.error("Erro ao sincronizar com o Firebase:", error);
             statusEl.innerText = "(Erro ao carregar)";
             statusEl.className = "sync-status";
-        }
-    }
-
-    async function carregarDadosNuvemBackground() {
-        if (estado.salvando || document.getElementById('syncStatus').innerText.includes("Digitando") || !window.fbDb) return;
-        try {
-            const snapshot = await window.fbGet(getBancoRef());
-            if (snapshot.exists()) {
-                const dadosRemotos = snapshot.val();
-                if (JSON.stringify(dadosRemotos) !== JSON.stringify(estado.banco)) {
-                    estado.banco = dadosRemotos;
-                    limparHistoricoAntigoNoBanco();
-                    atualizarRelatorioConsolidado();
-                }
-            }
-        } catch (e) {
-            console.error("Erro no background sync:", e);
-        }
+        });
     }
 
     function limparHistoricoAntigoNoBanco() {
@@ -906,8 +896,6 @@
         document.getElementById('dataInsercao').value = hojeStr;
         document.getElementById('filtroData').value = hojeStr;
 
-        setInterval(carregarDadosNuvemBackground, 15000);
-
         const inputHora = document.getElementById('inputHoraRapida');
         inputHora.addEventListener('input', function(e) {
             let v = e.target.value.replace(/\D/g, '');
@@ -1061,7 +1049,7 @@
         document.getElementById('syncStatus').innerText = "(Digitando...)";
         temporizadorSalvamento = setTimeout(() => {
             salvarDadosNuvem();
-        }, 1000);
+        }, 800);
     }
 
     function carregarDadosPorData() {
