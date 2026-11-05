@@ -487,7 +487,7 @@
             lblFullList: "Lista Completa (HH:MM = Peso) | Editable:",
             msgWaitingData: "Esperando ingreso de datos de pacientes...",
             titleChart: "Curva de Decaimiento y Reposiciones",
-            legendChart: "🔴 <b>Bolas Rojas:</b> Pacientes (Muestra peso, dosis aplicada y actividad restante).<br>🔵 <b>Bolas Azules (Arriba):</b> Dosis Stock (Suma Dosis Auto + Residuo Anterior).<br>🟠 <b>Bolas Naranjas (Arriba):</b> Dosis Extras Manuales.<br>✨ <b>Pase el cursor en el gráfico</b> para ver hora y stock exacto. Clic para añadir o gestionar eventos.",
+            legendChart: "🔴 <b>Bolas Rojas:</b> Pacientes (Muestra peso, dosis aplicada y actividad restante).<br>🔵 <b>Bolas Azules (Arriba):</b> Dosis Stock (Soma Dosis Auto + Residuo Anterior).<br>🟠 <b>Bolas Naranjas (Arriba):</b> Dosis Extras Manuales.<br>✨ <b>Pase el cursor en el gráfico</b> para ver hora y stock exacto. Clic para añadir o gestionar eventos.",
             titleOrderList: "Lista para Pedido (Distribuidora - TXT)",
             lblOrderRule: "Regra de Horario para Distribuidora:",
             optExactTime: "Horario Exacto (Ej: 08:00, 09:00, 09:30)",
@@ -657,6 +657,7 @@
                 resolve({ confirmado: false, valores: [] });
             };
 
+            if (dlg.open) dlg.close();
             dlg.showModal();
             if (inputs.length > 0) {
                 const primeiro = document.getElementById('dialogInput_0');
@@ -665,7 +666,6 @@
         });
     }
 
-    // Escuta em Tempo Real do Firebase: atualiza automaticamente a tela se houver dados salvos
     function iniciarEscutaTempoReal() {
         const statusEl = document.getElementById('sync-status');
         statusEl.innerText = "Carregando dados...";
@@ -712,7 +712,6 @@
             recalcularFatorAutomatico();
             atualizarRelatorioConsolidado();
             
-            // Se o usuário não estiver digitando na lista neste momento, atualiza com os dados vindos do banco
             if (document.activeElement !== document.getElementById('listaPacientes') && !estado.salvando) {
                 carregarDadosPorData();
             }
@@ -820,44 +819,43 @@
         processarSimulacaoCompleta();
     }
 
-   async function zerarBancoNuvem() {
-    const res = await abrirDialogo({
-        titulo: 'Zerar Histórico',
-        mensagem: 'ATENÇÃO: Esta ação irá apagar todo o histórico do banco de dados.\nPara confirmar, digite a palavra abaixo:',
-        inputs: [{ placeholder: 'Digite ZERAR para confirmar' }]
-    });
+    async function zerarBancoNuvem() {
+        const res = await abrirDialogo({
+            titulo: 'Zerar Histórico',
+            mensagem: 'ATENÇÃO: Esta ação irá apagar todo o histórico do banco de dados.\nPara confirmar, digite a palavra abaixo:',
+            inputs: [{ placeholder: 'Digite ZERAR para confirmar' }]
+        });
 
-    if (!res.confirmado) return;
+        if (!res.confirmado) return;
 
-    // Verifica se o texto digitado é exatamente "ZERAR" (ignorando maiúsculas/minúsculas)
-    const textoDigitado = (res.valores[0] || '').trim().toUpperCase();
-    if (textoDigitado !== 'ZERAR') {
-        alert("A palavra de confirmação está incorreta. A operação foi cancelada.");
-        return;
+        const textoDigitado = (res.valores[0] || '').trim().toUpperCase();
+        if (textoDigitado !== 'ZERAR') {
+            alert("A palavra de confirmação está incorreta. A operação foi cancelada.");
+            return;
+        }
+
+        let configGlobalTemp = estado.banco.configuracoesGlobais;
+        let idiomaGlobalTemp = estado.banco.idiomaGlobal;
+
+        estado.banco = { 
+            historicoDias: {}, 
+            idiomaGlobal: idiomaGlobalTemp || 'pt', 
+            configuracoesGlobais: configGlobalTemp || {} 
+        };
+        estado.cache.reposicoesExtras = {};
+        estado.cache.overridesAuto = {};
+
+        try {
+            await window.fbSet(getBancoRef(), estado.banco);
+            document.getElementById('listaPacientes').value = "";
+            processarSimulacaoCompleta();
+            atualizarRelatorioConsolidado();
+            alert("Histórico limpo com sucesso!");
+        } catch (error) {
+            console.error("Erro ao zerar banco:", error);
+            alert("Erro ao limpar dados no Firebase.");
+        }
     }
-
-    let configGlobalTemp = estado.banco.configuracoesGlobais;
-    let idiomaGlobalTemp = estado.banco.idiomaGlobal;
-
-    estado.banco = { 
-        historicoDias: {}, 
-        idiomaGlobal: idiomaGlobalTemp || 'pt', 
-        configuracoesGlobais: configGlobalTemp || {} 
-    };
-    estado.cache.reposicoesExtras = {};
-    estado.cache.overridesAuto = {};
-
-    try {
-        await window.fbSet(getBancoRef(), estado.banco);
-        document.getElementById('listaPacientes').value = "";
-        processarSimulacaoCompleta();
-        atualizarRelatorioConsolidado();
-        alert("Histórico limpo com sucesso!");
-    } catch (error) {
-        console.error("Erro ao zerar banco:", error);
-        alert("Erro ao limpar dados no Firebase.");
-    }
-}
 
     function atualizarRelatorioConsolidado() {
         let totalPacientes = 0;
@@ -880,7 +878,8 @@
                         totalPacientes += qtdDia;
                         
                         let fator = parseFloat(dia.fatorSubtle) || 0.667;
-                        let economiaDia = qtdDia * (10 * (1 - fator)); 
+                        let dosePadraoDia = parseFloat(dia.dosePadraoLote) || 10; // Correção Item 7: usa dose configurada do dia
+                        let economiaDia = qtdDia * (dosePadraoDia * (1 - fator)); 
                         totalEconomia += Math.max(0, economiaDia);
 
                         listaDetalhesHTML += `<div>• <b>${dataStr}</b>: ${qtdDia} ${i18n[idiomaAtual].patientsAttended}</div>`;
