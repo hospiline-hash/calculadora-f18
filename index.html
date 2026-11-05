@@ -820,36 +820,44 @@
         processarSimulacaoCompleta();
     }
 
-    async function zerarBancoNuvem() {
-        const res = await abrirDialogo({
-            titulo: 'Zerar Histórico',
-            mensagem: 'Deseja realmente limpar o histórico dos últimos 7 dias do banco de dados?'
-        });
+   async function zerarBancoNuvem() {
+    const res = await abrirDialogo({
+        titulo: 'Zerar Histórico',
+        mensagem: 'ATENÇÃO: Esta ação irá apagar todo o histórico do banco de dados.\nPara confirmar, digite a palavra abaixo:',
+        inputs: [{ placeholder: 'Digite ZERAR para confirmar' }]
+    });
 
-        if (!res.confirmado) return;
+    if (!res.confirmado) return;
 
-        let configGlobalTemp = estado.banco.configuracoesGlobais;
-        let idiomaGlobalTemp = estado.banco.idiomaGlobal;
-
-        estado.banco = { 
-            historicoDias: {}, 
-            idiomaGlobal: idiomaGlobalTemp || 'pt', 
-            configuracoesGlobais: configGlobalTemp || {} 
-        };
-        estado.cache.reposicoesExtras = {};
-        estado.cache.overridesAuto = {};
-
-        try {
-            await window.fbSet(getBancoRef(), estado.banco);
-            document.getElementById('listaPacientes').value = "";
-            processarSimulacaoCompleta();
-            atualizarRelatorioConsolidado();
-            alert("Histórico limpo com sucesso!");
-        } catch (error) {
-            console.error("Erro ao zerar banco:", error);
-            alert("Erro ao limpar dados no Firebase.");
-        }
+    // Verifica se o texto digitado é exatamente "ZERAR" (ignorando maiúsculas/minúsculas)
+    const textoDigitado = (res.valores[0] || '').trim().toUpperCase();
+    if (textoDigitado !== 'ZERAR') {
+        alert("A palavra de confirmação está incorreta. A operação foi cancelada.");
+        return;
     }
+
+    let configGlobalTemp = estado.banco.configuracoesGlobais;
+    let idiomaGlobalTemp = estado.banco.idiomaGlobal;
+
+    estado.banco = { 
+        historicoDias: {}, 
+        idiomaGlobal: idiomaGlobalTemp || 'pt', 
+        configuracoesGlobais: configGlobalTemp || {} 
+    };
+    estado.cache.reposicoesExtras = {};
+    estado.cache.overridesAuto = {};
+
+    try {
+        await window.fbSet(getBancoRef(), estado.banco);
+        document.getElementById('listaPacientes').value = "";
+        processarSimulacaoCompleta();
+        atualizarRelatorioConsolidado();
+        alert("Histórico limpo com sucesso!");
+    } catch (error) {
+        console.error("Erro ao zerar banco:", error);
+        alert("Erro ao limpar dados no Firebase.");
+    }
+}
 
     function atualizarRelatorioConsolidado() {
         let totalPacientes = 0;
