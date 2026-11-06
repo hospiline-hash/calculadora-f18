@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 
         const firebaseConfig = {
@@ -29,6 +29,7 @@
         window.fbRef = ref;
         window.fbGet = get;
         window.fbSet = set;
+        window.fbUpdate = update;
         window.fbOnValue = onValue;
         
         if (typeof iniciarEscutaTempoReal === 'function') {
@@ -381,7 +382,7 @@
 </div>
 
 <div class="footer-copyright" data-i18n="footerCopyright">
-    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9
+    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.1
 </div>
 
 <script>
@@ -438,7 +439,7 @@
             titleDailyDetails: "Detalhamento Diário (Últimos 7 Dias):",
             btnPrintPdf: "Imprimir / Salvar Resumo (PDF)",
             btnClearHistory: "Zerar / Limpar Histórico Antigo",
-            footerCopyright: "Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.1",
             btnCancel: "Cancelar",
             btnOk: "OK",
             saving: "(Salvando...)",
@@ -500,7 +501,7 @@
             titleDailyDetails: "Detalle Diario (Últimos 7 Días):",
             btnPrintPdf: "Imprimir / Guardar Resumen (PDF)",
             btnClearHistory: "Borrar / Limpiar Historial Antiguo",
-            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9.1",
             btnCancel: "Cancelar",
             btnOk: "Aceptar",
             saving: "(Guardando...)",
@@ -761,7 +762,9 @@
             estado.banco.historicoDias = {};
         }
 
-        estado.banco.historicoDias[dataSelecionada] = {
+        // Prepara objeto estruturado para atualizar apenas este dia na nuvem sem afetar os outros dias
+        const dadosParaAtualizar = {};
+        dadosParaAtualizar[`historicoDias/${dataSelecionada}`] = {
             textoPacientes,
             radiofarmaco,
             razaoRotina,
@@ -772,14 +775,14 @@
             reposicoesExtras: estado.cache.reposicoesExtras[dataSelecionada] || [],
             overridesAuto: estado.cache.overridesAuto[dataSelecionada] || {}
         };
-
-        limparHistoricoAntigoNoBanco();
+        dadosParaAtualizar['idiomaGlobal'] = idiomaAtual;
 
         estado.salvando = true;
         document.getElementById('syncStatus').innerText = "(Salvando...)";
 
         try {
-            await window.fbSet(getBancoRef(), estado.banco);
+            // Utiliza o update para preservar intactos todos os outros dias e nós do banco
+            await window.fbUpdate(getBancoRef(), dadosParaAtualizar);
             document.getElementById('syncStatus').innerText = "(Salvo na nuvem)";
             atualizarRelatorioConsolidado();
         } catch (error) {
@@ -814,9 +817,21 @@
             meiaVidaCustom: valMeiaCustom
         };
 
-        await salvarDadosNuvem();
-        alert("Configurações padrão salvas com sucesso no banco de dados!");
-        processarSimulacaoCompleta();
+        const dadosParaAtualizar = {
+            configuracoesGlobais: estado.banco.configuracoesGlobais
+        };
+
+        estado.salvando = true;
+        try {
+            await window.fbUpdate(getBancoRef(), dadosParaAtualizar);
+            alert("Configurações padrão salvas com sucesso no banco de dados!");
+            processarSimulacaoCompleta();
+        } catch (error) {
+            console.error("Erro ao salvar configurações:", error);
+            alert("Erro ao salvar configurações na nuvem.");
+        } finally {
+            estado.salvando = false;
+        }
     }
 
     async function zerarBancoNuvem() {
@@ -878,7 +893,7 @@
                         totalPacientes += qtdDia;
                         
                         let fator = parseFloat(dia.fatorSubtle) || 0.667;
-                        let dosePadraoDia = parseFloat(dia.dosePadraoLote) || 10; // Correção Item 7: usa dose configurada do dia
+                        let dosePadraoDia = parseFloat(dia.dosePadraoLote) || 10;
                         let economiaDia = qtdDia * (dosePadraoDia * (1 - fator)); 
                         totalEconomia += Math.max(0, economiaDia);
 
@@ -1490,7 +1505,7 @@
                             const resAdd = await abrirDialogo({
                                 titulo: 'Adicionar Evento',
                                 mensagem: `Adicionar às ${horarioSugerido}?\n1 - Paciente\n2 - Dose Extra (${a0Inicial} mCi)`,
-                                inputs: [{ value: '1', placeholder: '1 ou 2' }]
+                                inputs: [{ value: '1', placeholder: '1 or 2' }]
                             });
 
                             if (resAdd.confirmado) {
