@@ -196,6 +196,8 @@
             display: flex;
             gap: 10px;
             margin-top: 5px;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         dialog#modalDialogo {
@@ -308,8 +310,8 @@
                 <input type="number" id="razaoRotina" value="0.12" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.12">
             </div>
             <div>
-                <label for="razaoRIA" data-i18n="lblRazaoRIA">IA - Razão (RIA) [mCi/kg]:</label>
-                <input type="number" id="razaoRIA" value="0.08" step="0.01" min="0.01" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.08">
+                <label for="razaoRIA" id="labelCampoDinamico" data-i18n="lblRazaoRIA">IA - Razão (RIA Padrão) [mCi/kg]:</label>
+                <input type="number" id="razaoRIA" value="0.08" step="0.01" min="0.001" max="1.0" oninput="recalcularFatorAutomatico(); aoDigitarPacientes();" placeholder="Ex: 0.08">
                 <div id="infoFatorTexto" class="info-status-fator">Fator: 0.667 (Economia de 33,3%)</div>
                 <input type="hidden" id="fatorSubtle" value="0.667">
             </div>
@@ -317,23 +319,30 @@
                 <label for="dosePadraoLote" data-i18n="lblBatchDose">Dose Inicial do Lote (mCi):</label>
                 <input type="number" id="dosePadraoLote" value="10" step="0.5" min="1" max="50" oninput="aoDigitarPacientes()">
             </div>
-            <div>
-                <label style="visibility: hidden; margin-top: 10px;">Ação:</label>
-                <button type="button" onclick="salvarConfiguracoesPadrao()" style="background: #3b82f6; margin-top: 4px; height: 41px;" data-i18n="btnSaveDefaults">Salvar Configuração Padrão</button>
+            <div style="grid-column: span 3;">
+                <button type="button" onclick="salvarConfiguracoesPadrao()" style="background: #3b82f6; margin-top: 10px; height: 41px;" data-i18n="btnSaveDefaults">Salvar Configuração Padrão</button>
             </div>
         </div>
     </div>
 
     <label data-i18n="lblQuickAdd">Adicionar Paciente Rápido (Máscara automática):</label>
     <div class="input-rapido-container">
-        <input type="text" id="inputHoraRapida" placeholder="Horário (Ex: 0730)" style="flex: 1;" maxlength="5">
-        <input type="number" id="inputPesoRapido" placeholder="Peso em kg (Ex: 80)" style="flex: 1;">
-        <button type="button" class="btn-success" onclick="adicionarPacienteRapido()" style="margin-top: 0; flex: 1;" data-i18n="btnAddQuick">+ Adicionar</button>
+        <input type="text" id="inputHoraRapida" placeholder="Horário (Ex: 0730)" style="flex: 1; min-width: 110px;" maxlength="5">
+        <input type="number" id="inputPesoRapido" placeholder="Peso em kg (Ex: 80)" style="flex: 1; min-width: 110px;">
+        
+        <div style="display: flex; align-items: center; gap: 6px; flex: 1.2; min-width: 160px;">
+            <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px; cursor: pointer; white-space: nowrap;">
+                <input type="checkbox" id="chkRiaCustom" onchange="document.getElementById('inputRiaRapida').style.display = this.checked ? 'block' : 'none';"> RIA por Paciente
+            </label>
+            <input type="number" id="inputRiaRapida" placeholder="RIA (Ex: 0.07)" step="0.01" style="display: none; width: 100%; margin-top: 0;" />
+        </div>
+
+        <button type="button" class="btn-success" onclick="adicionarPacienteRapido()" style="margin-top: 0; width: auto; padding: 9px 16px;" data-i18n="btnAddQuick">+ Adicionar</button>
     </div>
     <span style="font-size: 11px; color: #64748b;" data-i18n="hintQuickAdd">Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.</span>
 
-    <label for="listaPacientes" style="margin-top: 15px;" data-i18n="lblFullList">Lista Completa (HH:MM = Peso) | Editável:</label>
-    <textarea id="listaPacientes" rows="5" placeholder="Exemplo:&#10;07:00 = 82&#10;08:00 = 90" oninput="aoDigitarPacientes()"></textarea>
+    <label for="listaPacientes" style="margin-top: 15px;" data-i18n="lblFullList">Lista Completa (Somente Editar e Excluir):</label>
+    <textarea id="listaPacientes" rows="5" oninput="aoDigitarPacientes()" onkeydown="if(event.key==='Enter'){ event.preventDefault(); alert('Para inserir novos pacientes, utilize o botão Adicionar acima.'); }" style="background: #ffffff;" placeholder="Os pacientes inseridos aparecerão aqui..."></textarea>
 
     <div class="result" id="resultado">
         <span id="textoResultadoSimulacao" data-i18n="msgWaitingData">Aguardando inserção de dados dos pacientes...</span>
@@ -382,7 +391,7 @@
 </div>
 
 <div class="footer-copyright" data-i18n="footerCopyright">
-    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.1
+    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.2
 </div>
 
 <script>
@@ -415,7 +424,7 @@
             optCustom: "Outro (Meia-Vida personalizada)",
             lblHalfLifeCustom: "Meia-Vida Custom (min):",
             lblRazaoRotina: "Clínica - Razão (Rrotina) [mCi/kg]:",
-            lblRazaoRIA: "IA - Razão (RIA) [mCi/kg]:",
+            lblRazaoRIA: "IA - Razão (RIA Padrão) [mCi/kg]:",
             lblBatchDose: "Dose Inicial do Lote (mCi):",
             btnSaveDefaults: "Salvar Configuração Padrão",
             lblQuickAdd: "Adicionar Paciente Rápido (Máscara automática):",
@@ -423,7 +432,7 @@
             phQuickWeight: "Peso em kg (Ex: 80)",
             btnAddQuick: "+ Adicionar",
             hintQuickAdd: "Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.",
-            lblFullList: "Lista Completa (HH:MM = Peso) | Editável:",
+            lblFullList: "Lista Completa (Somente Leitura - Somente Editar e Excluir):",
             msgWaitingData: "Aguardando inserção de dados dos pacientes...",
             titleChart: "Curva do Decaimento e Reposições",
             legendChart: "🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante).<br>🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior).<br>🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais.<br>✨ <b>Passe o mouse em qualquer área do gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.",
@@ -439,7 +448,7 @@
             titleDailyDetails: "Detalhamento Diário (Últimos 7 Dias):",
             btnPrintPdf: "Imprimir / Salvar Resumo (PDF)",
             btnClearHistory: "Zerar / Limpar Histórico Antigo",
-            footerCopyright: "Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.1",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.2",
             btnCancel: "Cancelar",
             btnOk: "OK",
             saving: "(Salvando...)",
@@ -477,7 +486,7 @@
             optCustom: "Otro (Semivida personalizada)",
             lblHalfLifeCustom: "Semivida Personalizada (min):",
             lblRazaoRotina: "Clínica - Relación actividad/masa (Rrotina) [mCi/kg]:",
-            lblRazaoRIA: "IA - Relación actividad/masa (RIA) [mCi/kg]:",
+            lblRazaoRIA: "IA - Relación actividad/masa (RIA Estándar) [mCi/kg]:",
             lblBatchDose: "Dosis Inicial del Lote (mCi):",
             btnSaveDefaults: "Guardar Config en BD",
             lblQuickAdd: "Agregar Paciente Rápido (Máscara auto):",
@@ -485,7 +494,7 @@
             phQuickWeight: "Peso en kg (Ej: 80)",
             btnAddQuick: "+ Agregar",
             hintQuickAdd: "Consejo: Ingrese solo números de hora (ej: 0800) y dos puntos se añaden solos.",
-            lblFullList: "Lista Completa (HH:MM = Peso) | Editable:",
+            lblFullList: "Lista Completa (Solo Lectura - Solo Edita y Elimina):",
             msgWaitingData: "Esperando ingreso de datos de pacientes...",
             titleChart: "Curva de Decaimiento y Reposiciones",
             legendChart: "🔴 <b>Bolas Rojas:</b> Pacientes (Muestra peso, dosis aplicada y actividad restante).<br>🔵 <b>Bolas Azules (Arriba):</b> Dosis Stock (Soma Dosis Auto + Residuo Anterior).<br>🟠 <b>Bolas Naranjas (Arriba):</b> Dosis Extras Manuales.<br>✨ <b>Pase el cursor en el gráfico</b> para ver hora y stock exacto. Clic para añadir o gestionar eventos.",
@@ -501,7 +510,7 @@
             titleDailyDetails: "Detalle Diario (Últimos 7 Días):",
             btnPrintPdf: "Imprimir / Guardar Resumen (PDF)",
             btnClearHistory: "Borrar / Limpiar Historial Antiguo",
-            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9.1",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9.2",
             btnCancel: "Cancelar",
             btnOk: "Aceptar",
             saving: "(Guardando...)",
@@ -762,7 +771,6 @@
             estado.banco.historicoDias = {};
         }
 
-        // Prepara objeto estruturado para atualizar apenas este dia na nuvem sem afetar os outros dias
         const dadosParaAtualizar = {};
         dadosParaAtualizar[`historicoDias/${dataSelecionada}`] = {
             textoPacientes,
@@ -781,7 +789,6 @@
         document.getElementById('syncStatus').innerText = "(Salvando...)";
 
         try {
-            // Utiliza o update para preservar intactos todos os outros dias e nós do banco
             await window.fbUpdate(getBancoRef(), dadosParaAtualizar);
             document.getElementById('syncStatus').innerText = "(Salvo na nuvem)";
             atualizarRelatorioConsolidado();
@@ -932,6 +939,12 @@
                 adicionarPacienteRapido();
             }
         });
+
+        document.getElementById('inputRiaRapida').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                adicionarPacienteRapido();
+            }
+        });
         
         recalcularFatorAutomatico();
     };
@@ -939,6 +952,8 @@
     function adicionarPacienteRapido() {
         let hora = document.getElementById('inputHoraRapida').value.trim();
         let peso = document.getElementById('inputPesoRapido').value.trim();
+        let chkRia = document.getElementById('chkRiaCustom').checked;
+        let riaCustom = document.getElementById('inputRiaRapida').value.trim();
 
         if (!hora || !peso || isNaN(peso)) {
             alert("Informe um horário válido e o peso do paciente.");
@@ -950,6 +965,10 @@
         }
 
         let linhaNueva = `${hora} = ${peso}`;
+        if (chkRia && riaCustom && !isNaN(riaCustom) && parseFloat(riaCustom) > 0) {
+            linhaNueva += ` @ ${riaCustom}`;
+        }
+
         let textarea = document.getElementById('listaPacientes');
         
         if (textarea.value.trim() === "") {
@@ -960,6 +979,9 @@
 
         document.getElementById('inputHoraRapida').value = "";
         document.getElementById('inputPesoRapido').value = "";
+        document.getElementById('inputRiaRapida').value = "";
+        document.getElementById('chkRiaCustom').checked = false;
+        document.getElementById('inputRiaRapida').style.display = 'none';
         document.getElementById('inputHoraRapida').focus();
 
         aoDigitarPacientes();
@@ -1044,14 +1066,42 @@
     function parseLinhaPaciente(linha) {
         const linhaLimpa = linha.trim();
         if (!linhaLimpa) return null;
-        const partes = linhaLimpa.includes('=') ? linhaLimpa.split('=') : linhaLimpa.split(' ');
+
+        let riaEspecifica = null;
+        let partePac = linhaLimpa;
+
+        if (linhaLimpa.includes('@')) {
+            const partesRia = linhaLimpa.split('@');
+            partePac = partesRia[0].trim();
+            riaEspecifica = parseFloat(partesRia[1].trim());
+        }
+
+        const partes = partePac.includes('=') ? partePac.split('=') : partePac.split(' ');
         if (partes.length < 2) return null;
+
         const horaBruta = partes[0].trim();
         const minutos = converterHoraParaMinutos(horaBruta);
         if (minutos === null) return null;
+
         const pesoVal = parseFloat(partes[1].trim());
         if (isNaN(pesoVal) || pesoVal <= 0) return null;
-        return { minutos, horaStr: minutosParaHoraStr(minutos), peso: pesoVal };
+
+        return { 
+            minutos, 
+            horaStr: minutosParaHoraStr(minutos), 
+            peso: pesoVal, 
+            riaCustom: (!isNaN(riaEspecifica) && riaEspecifica > 0) ? riaEspecifica : null 
+        };
+    }
+
+    function formatarPacientesParaTextarea(arrPacientes) {
+        return arrPacientes.map(p => {
+            let str = `${p.horaStr} = ${p.peso}`;
+            if (p.riaCustom) {
+                str += ` @ ${p.riaCustom}`;
+            }
+            return str;
+        }).join('\n');
     }
 
     async function aoMudarDataInsercao() {
@@ -1143,9 +1193,12 @@
             textoPacientes.split('\n').forEach(linha => {
                 const p = parseLinhaPaciente(linha);
                 if (p) {
+                    let riaUtilizada = p.riaCustom ? p.riaCustom : razaoRIAVal;
+                    let fatorPaciente = riaUtilizada / razaoRotinaVal;
+                    
                     pacientes.push({
                         ...p,
-                        doseNecessaria: p.peso * razaoRotinaVal * fatorSubtleCalculado
+                        doseNecessaria: p.peso * razaoRotinaVal * fatorPaciente
                     });
                 }
             });
@@ -1260,7 +1313,8 @@
                     dadosAtividadePre.push({
                         ativPre: parseFloat(picoEstoqueNoMinuto.toFixed(2)),
                         dosePaciente: pacObj ? pacObj.doseNecessaria : 0,
-                        peso: pacObj ? pacObj.peso : 0
+                        peso: pacObj ? pacObj.peso : 0,
+                        riaCustom: pacObj ? pacObj.riaCustom : null
                     });
                 } else {
                     dadosPacientesPuntos.push({ x: m, y: null });
@@ -1378,7 +1432,8 @@
                                         let linhasTooltip = [`Atividade Restante: ${ativRestante.toFixed(2).replace('.', ',')} mCi`];
                                         
                                         if (infoP) {
-                                            linhasTooltip.push(`Dose Aplicada: ${infoP.dosePaciente.toFixed(2).replace('.', ',')} mCi (Peso: ${infoP.peso} kg)`);
+                                            let strRia = infoP.riaCustom ? ` (RIA Custom: ${infoP.riaCustom})` : '';
+                                            linhasTooltip.push(`Dose Aplicada: ${infoP.dosePaciente.toFixed(2).replace('.', ',')} mCi (Peso: ${infoP.peso} kg${strRia})`);
                                             let h = Math.floor(minutosTotais / 60);
                                             let m = minutosTotais % 60;
                                             let minAnt = m - 1 < 0 ? 59 : m - 1;
@@ -1461,34 +1516,39 @@
                             if (pacEncontrado) {
                                 const res = await abrirDialogo({
                                     titulo: `Paciente às ${pacEncontrado.horaStr}`,
-                                    mensagem: 'Escolha a ação:\n1 - Alterar Horário / Peso\n2 - Remover Paciente',
+                                    mensagem: 'Escolha a ação:\n1 - Alterar Dados (Horário, Peso, RIA)\n2 - Remover Paciente',
                                     inputs: [{ value: '1', placeholder: '1 ou 2' }]
                                 });
                                 if (res.confirmado) {
                                     if (res.valores[0] === '1') {
                                         const resEdit = await abrirDialogo({
                                             titulo: 'Editar Paciente',
-                                            mensagem: 'Informe o novo horário e o novo peso:',
+                                            mensagem: 'Informe as novas informações (Deixe RIA em branco para usar o padrão):',
                                             inputs: [
                                                 { label: 'Horário (HH:MM)', value: pacEncontrado.horaStr },
-                                                { label: 'Peso (kg)', value: pacEncontrado.peso, type: 'number' }
+                                                { label: 'Peso (kg)', value: pacEncontrado.peso, type: 'number' },
+                                                { label: 'RIA Customizada (opcional)', value: pacEncontrado.riaCustom || '', type: 'number' }
                                             ]
                                         });
                                         if (resEdit.confirmado) {
                                             let novoM = converterHoraParaMinutos(resEdit.valores[0]);
                                             let novoP = parseFloat(resEdit.valores[1]);
+                                            let novaRia = parseFloat(resEdit.valores[2]);
+                                            
                                             if (novoM !== null && !isNaN(novoP)) {
                                                 pacEncontrado.minutos = novoM;
                                                 pacEncontrado.horaStr = minutosParaHoraStr(novoM);
                                                 pacEncontrado.peso = novoP;
+                                                pacEncontrado.riaCustom = (!isNaN(novaRia) && novaRia > 0) ? novaRia : null;
+                                                
                                                 pacientes.sort((a, b) => a.minutos - b.minutos);
-                                                document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
+                                                document.getElementById('listaPacientes').value = formatarPacientesParaTextarea(pacientes);
                                                 aoDigitarPacientes();
                                             }
                                         }
                                     } else if (res.valores[0] === '2') {
                                         pacientes = pacientes.filter(p => p.minutos !== pacEncontrado.minutos);
-                                        document.getElementById('listaPacientes').value = pacientes.map(p => `${p.horaStr} = ${p.peso}`).join('\n');
+                                        document.getElementById('listaPacientes').value = formatarPacientesParaTextarea(pacientes);
                                         aoDigitarPacientes();
                                     }
                                 }
@@ -1505,22 +1565,31 @@
                             const resAdd = await abrirDialogo({
                                 titulo: 'Adicionar Evento',
                                 mensagem: `Adicionar às ${horarioSugerido}?\n1 - Paciente\n2 - Dose Extra (${a0Inicial} mCi)`,
-                                inputs: [{ value: '1', placeholder: '1 or 2' }]
+                                inputs: [{ value: '1', placeholder: '1 ou 2' }]
                             });
 
                             if (resAdd.confirmado) {
                                 if (resAdd.valores[0] === '1') {
                                     const resPac = await abrirDialogo({
                                         titulo: 'Novo Paciente',
-                                        mensagem: 'Informe horário e peso:',
+                                        mensagem: 'Informe os dados do paciente:',
                                         inputs: [
                                             { label: 'Horário (HH:MM)', value: horarioSugerido },
-                                            { label: 'Peso (kg)', value: '80', type: 'number' }
+                                            { label: 'Peso (kg)', value: '80', type: 'number' },
+                                            { label: 'RIA Custom (opcional)', value: '', type: 'number' }
                                         ]
                                     });
                                     if (resPac.confirmado && resPac.valores[0] && resPac.valores[1]) {
                                         let textarea = document.getElementById('listaPacientes');
-                                        let linhaNova = `${resPac.valores[0].trim()} = ${resPac.valores[1].trim()}`;
+                                        let hStr = resPac.valores[0].trim();
+                                        let pStr = resPac.valores[1].trim();
+                                        let rStr = resPac.valores[2] ? resPac.valores[2].trim() : '';
+
+                                        let linhaNova = `${hStr} = ${pStr}`;
+                                        if (rStr && !isNaN(rStr) && parseFloat(rStr) > 0) {
+                                            linhaNova += ` @ ${rStr}`;
+                                        }
+
                                         textarea.value = textarea.value.trim() ? textarea.value.trim() + '\n' + linhaNova : linhaNova;
                                         aoDigitarPacientes();
                                     }
