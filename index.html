@@ -166,7 +166,6 @@
             align-items: start;
         }
 
-        /* Grid específico para o Adicionar Rápido organizado */
         .input-rapido-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -329,7 +328,6 @@
 
     <label data-i18n="lblQuickAdd">Adicionar Paciente Rápido (Máscara automática):</label>
     
-    <!-- Novo layout em Grid organizado com o botão na linha de baixo -->
     <div class="input-rapido-grid">
         <div>
             <label style="margin-top:0; font-size:12px;" data-i18n="lblTime">Horário:</label>
@@ -346,7 +344,7 @@
         <div>
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
                 <label style="display: flex; align-items: center; gap: 3px; margin: 0; font-size: 11px; cursor: pointer; white-space: nowrap;">
-                    <input type="checkbox" id="chkRiaCustom" onchange="document.getElementById('inputRiaRapida').style.display = this.checked ? 'block' : 'none';">Ria por Paciente:
+                    <input type="checkbox" id="chkRiaCustom" onchange="document.getElementById('inputRiaRapida').style.display = this.checked ? 'block' : 'none';">Ria Por Paciente:
                 </label>
                 <input type="number" id="inputRiaRapida" placeholder="0.07" step="0.01" style="display: none; width: 100%; margin-top: 0; padding: 9px;" />
             </div>
@@ -526,7 +524,7 @@
             titleDailyDetails: "Detalle Diario (Últimos 7 Días):",
             btnPrintPdf: "Imprimir / Guardar Resumen (PDF)",
             btnClearHistory: "Borrar / Limpiar Historial Antiguo",
-            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9.6",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos os derechos reservados - Versão 4.9.6",
             btnCancel: "Cancelar",
             btnOk: "Aceptar",
             saving: "(Guardando...)",
@@ -739,7 +737,9 @@
             recalcularFatorAutomatico();
             atualizarRelatorioConsolidado();
             
-            if (document.activeElement !== document.getElementById('listaPacientes') && !estado.salvando) {
+            // BLINDAGEM: Só carrega os dados para a tela se o filtro de data já estiver preenchido
+            const filtroDataEl = document.getElementById('filtroData');
+            if (filtroDataEl && filtroDataEl.value && document.activeElement !== document.getElementById('listaPacientes') && !estado.salvando) {
                 carregarDadosPorData();
             }
             
@@ -763,7 +763,7 @@
             const diffTime = hoje - dataReg;
             const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
-            if (diffDays > DIAS_HISTORICO || diffDays < 0) {
+            if (diffDays > DIAS_HISTORICO) {
                 delete estado.banco.historicoDias[dataStr];
                 houveRemocao = true;
             }
@@ -776,6 +776,8 @@
         if (!window.fbDb) return;
         
         const dataSelecionada = document.getElementById('filtroData').value;
+        if (!dataSelecionada) return; // Evita salvar em chave vazia
+
         const textoPacientes = document.getElementById('listaPacientes').value;
         const radiofarmaco = document.getElementById('radiofarmaco').value;
         const razaoRotina = document.getElementById('razaoRotina').value;
@@ -912,7 +914,7 @@
                 if (diffDays >= 0 && diffDays <= DIAS_HISTORICO) {
                     let dia = estado.banco.historicoDias[dataStr];
                     if (dia && dia.textoPacientes) {
-                        let linhas = dia.textoPacientes.split('\n').filter(l => l.trim() !== '');
+                        let linhas = dia.textoPacientes.split(/(?=\s\d{1,2}:\d{2})|\n/).map(l => l.trim()).filter(l => l !== '');
                         let qtdDia = linhas.length;
                         totalPacientes += qtdDia;
                         
@@ -939,11 +941,6 @@
         document.getElementById('stat-total').innerText = totalPacientes;
         document.getElementById('stat-economia').innerText = totalEconomia.toFixed(1) + " mCi";
         document.getElementById('lista-detalhes-print').innerHTML = listaDetalhesHTML || i18n[idiomaAtual].noRecords;
-        
-        const tituloStat = document.querySelector('.card.stats h3');
-        if (tituloStat) {
-            tituloStat.innerHTML = `<span data-i18n="titleConsolidated">Relatório Consolidado</span>  <span id="sync-status" class="loading">(Sincronizado)</span>`;
-        }
     }
 
     window.onload = function() {
@@ -961,24 +958,17 @@
         });
 
         document.getElementById('inputPesoRapido').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                adicionarPacienteRapido();
-            }
+            if (e.key === 'Enter') { adicionarPacienteRapido(); }
         });
-
         document.getElementById('inputExameRapido').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                adicionarPacienteRapido();
-            }
+            if (e.key === 'Enter') { adicionarPacienteRapido(); }
         });
-
         document.getElementById('inputRiaRapida').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                adicionarPacienteRapido();
-            }
+            if (e.key === 'Enter') { adicionarPacienteRapido(); }
         });
         
         recalcularFatorAutomatico();
+        carregarDadosPorData();
     };
 
     function adicionarPacienteRapido() {
@@ -1050,15 +1040,11 @@
 
         if (parseFloat(percentualExato) > 0) {
             divInfo.style.color = "#059669";
-            divInfo.innerText = i18n[idiomaAtual].savingsText
-                .replace('{fator}', fatorStr)
-                .replace('{val}', percentualExato.replace('.', ','));
+            divInfo.innerText = i18n[idiomaAtual].savingsText.replace('{fator}', fatorStr).replace('{val}', percentualExato.replace('.', ','));
         } else if (parseFloat(percentualExato) < 0) {
             let aumento = Math.abs(parseFloat(percentualExato)).toFixed(1);
             divInfo.style.color = "#d97706";
-            divInfo.innerText = i18n[idiomaAtual].increaseText
-                .replace('{fator}', fatorStr)
-                .replace('{val}', aumento.replace('.', ','));
+            divInfo.innerText = i18n[idiomaAtual].increaseText.replace('{fator}', fatorStr).replace('{val}', aumento.replace('.', ','));
         } else {
             divInfo.style.color = "#64748b";
             divInfo.innerText = i18n[idiomaAtual].standardDoseText;
@@ -1147,12 +1133,8 @@
     function formatarPacientesParaTextarea(arrPacientes) {
         return arrPacientes.map(p => {
             let str = `${p.horaStr} = ${p.peso}`;
-            if (p.exame) {
-                str += ` | Exame: ${p.exame}`;
-            }
-            if (p.riaCustom) {
-                str += ` @ ${p.riaCustom}`;
-            }
+            if (p.exame) { str += ` | Exame: ${p.exame}`; }
+            if (p.riaCustom) { str += ` @ ${p.riaCustom}`; }
             return str;
         }).join('\n');
     }
@@ -1163,6 +1145,7 @@
             temporizadorSalvamento = null;
             await salvarDadosNuvem();
         }
+        // Garante que a visualização acompanha a data de atendimento inserida
         document.getElementById('filtroData').value = document.getElementById('dataInsercao').value;
         carregarDadosPorData();
     }
@@ -1180,6 +1163,7 @@
     function carregarDadosPorData() {
         estado.carregandoRemoto = true;
         const dataSelecionada = document.getElementById('filtroData').value;
+        
         if (estado.banco.historicoDias && estado.banco.historicoDias[dataSelecionada]) {
             let dadosDia = estado.banco.historicoDias[dataSelecionada];
             document.getElementById('listaPacientes').value = dadosDia.textoPacientes || "";
@@ -1190,21 +1174,11 @@
                 document.getElementById('radiofarmaco').value = dadosDia.radiofarmaco;
                 aoMudarRadiofarmaco();
             }
-            if (dadosDia.razaoRotina) {
-                document.getElementById('razaoRotina').value = dadosDia.razaoRotina;
-            }
-            if (dadosDia.razaoRIA) {
-                document.getElementById('razaoRIA').value = dadosDia.razaoRIA;
-            }
-            if (dadosDia.fatorSubtle) {
-                document.getElementById('fatorSubtle').value = dadosDia.fatorSubtle;
-            }
-            if (dadosDia.meiaVidaCustom) {
-                document.getElementById('meiaVidaCustom').value = dadosDia.meiaVidaCustom;
-            }
-            if (dadosDia.dosePadraoLote) {
-                document.getElementById('dosePadraoLote').value = dadosDia.dosePadraoLote;
-            }
+            if (dadosDia.razaoRotina) { document.getElementById('razaoRotina').value = dadosDia.razaoRotina; }
+            if (dadosDia.razaoRIA) { document.getElementById('razaoRIA').value = dadosDia.razaoRIA; }
+            if (dadosDia.fatorSubtle) { document.getElementById('fatorSubtle').value = dadosDia.fatorSubtle; }
+            if (dadosDia.meiaVidaCustom) { document.getElementById('meiaVidaCustom').value = dadosDia.meiaVidaCustom; }
+            if (dadosDia.dosePadraoLote) { document.getElementById('dosePadraoLote').value = dadosDia.dosePadraoLote; }
         } else {
             document.getElementById('listaPacientes').value = "";
             estado.cache.reposicoesExtras[dataSelecionada] = [];
@@ -1243,7 +1217,12 @@
             const lambda = 0.693 / meiaVidaMin;
             let pacientes = [];
             
-            textoPacientes.split('\n').forEach(linha => {
+            const linhasProcessadas = textoPacientes
+                .split(/(?=\s\d{1,2}:\d{2})|\n/)
+                .map(l => l.trim())
+                .filter(l => l !== '');
+
+            linhasProcessadas.forEach(linha => {
                 const p = parseLinhaPaciente(linha);
                 if (p) {
                     let riaUtilizada = p.riaCustom ? p.riaCustom : razaoRIAVal;
@@ -1514,157 +1493,6 @@
                             }
                         }
                     },
-                    onClick: async (e, elements) => {
-                        const dataAtual = document.getElementById('filtroData').value;
-                        if (!estado.cache.reposicoesExtras[dataAtual]) estado.cache.reposicoesExtras[dataAtual] = [];
-                        if (!estado.cache.overridesAuto[dataAtual]) estado.cache.overridesAuto[dataAtual] = {};
-
-                        if (elements && elements.length > 0) {
-                            const hit = elements[0];
-                            const datasetIndex = hit.datasetIndex;
-                            const index = hit.index;
-                            const minutosClicados = meuGrafico.data.datasets[datasetIndex].data[index].x;
-                            let horarioClicado = minutosParaHoraStr(minutosClicados);
-
-                            if (datasetIndex === 2) {
-                                const res = await abrirDialogo({
-                                    titulo: i18n[idiomaAtual].datasetStock,
-                                    mensagem: `Dose Automática às ${horarioClicado}.\nDigite o NOVO HORÁRIO (HH:MM):`,
-                                    inputs: [{ value: horarioClicado, placeholder: 'HH:MM' }]
-                                });
-                                if (res.confirmado && res.valores[0]) {
-                                    let novoH = res.valores[0].trim();
-                                    let pacAlvo = pacientes.find(p => p.horaStr === horarioClicado) || pacientes[0];
-                                    if (pacAlvo) {
-                                        estado.cache.overridesAuto[dataAtual][pacAlvo.horaStr] = novoH;
-                                        aoDigitarPacientes();
-                                    }
-                                }
-                                return;
-                            }
-
-                            if (datasetIndex === 3) {
-                                const res = await abrirDialogo({
-                                    titulo: i18n[idiomaAtual].datasetExtra,
-                                    mensagem: `Dose Extra às ${horarioClicado}.\nO que deseja fazer?`,
-                                    inputs: [{ value: '1', placeholder: '1-Alterar / 2-Remover' }]
-                                });
-                                if (res.confirmado) {
-                                    if (res.valores[0] === '1') {
-                                        const resH = await abrirDialogo({
-                                            titulo: 'Alterar Horário',
-                                            mensagem: 'Digite o novo horário (HH:MM):',
-                                            inputs: [{ value: horarioClicado }]
-                                        });
-                                        if (resH.confirmado && resH.valores[0]) {
-                                            estado.cache.reposicoesExtras[dataAtual] = estado.cache.reposicoesExtras[dataAtual].filter(h => h !== horarioClicado);
-                                            estado.cache.reposicoesExtras[dataAtual].push(resH.valores[0].trim());
-                                            aoDigitarPacientes();
-                                        }
-                                    } else if (res.valores[0] === '2') {
-                                        estado.cache.reposicoesExtras[dataAtual] = estado.cache.reposicoesExtras[dataAtual].filter(h => h !== horarioClicado);
-                                        aoDigitarPacientes();
-                                    }
-                                }
-                                return;
-                            }
-
-                            let pacEncontrado = pacientes.find(p => p.minutos === minutosClicados);
-                            if (pacEncontrado) {
-                                const res = await abrirDialogo({
-                                    titulo: `Paciente às ${pacEncontrado.horaStr}`,
-                                    mensagem: 'Escolha a ação:\n1 - Alterar Dados (Horário, Peso, Exame, RIA)\n2 - Remover Paciente',
-                                    inputs: [{ value: '1', placeholder: '1 ou 2' }]
-                                });
-                                if (res.confirmado) {
-                                    if (res.valores[0] === '1') {
-                                        const resEdit = await abrirDialogo({
-                                            titulo: 'Editar Paciente',
-                                            mensagem: 'Informe as novas informações:',
-                                            inputs: [
-                                                { label: 'Horário (HH:MM)', value: pacEncontrado.horaStr },
-                                                { label: 'Peso (kg)', value: pacEncontrado.peso, type: 'number' },
-                                                { label: 'Exame (opcional)', value: pacEncontrado.exame || '' },
-                                                { label: 'RIA Customizada (opcional)', value: pacEncontrado.riaCustom || '', type: 'number' }
-                                            ]
-                                        });
-                                        if (resEdit.confirmado) {
-                                            let novoM = converterHoraParaMinutos(resEdit.valores[0]);
-                                            let novoP = parseFloat(resEdit.valores[1]);
-                                            let novoExame = resEdit.valores[2] ? resEdit.valores[2].trim() : null;
-                                            let novaRia = parseFloat(resEdit.valores[3]);
-                                            
-                                            if (novoM !== null && !isNaN(novoP)) {
-                                                pacEncontrado.minutos = novoM;
-                                                pacEncontrado.horaStr = minutosParaHoraStr(novoM);
-                                                pacEncontrado.peso = novoP;
-                                                pacEncontrado.exame = novoExame ? novoExame : null;
-                                                pacEncontrado.riaCustom = (!isNaN(novaRia) && novaRia > 0) ? novaRia : null;
-                                                
-                                                pacientes.sort((a, b) => a.minutos - b.minutos);
-                                                document.getElementById('listaPacientes').value = formatarPacientesParaTextarea(pacientes);
-                                                aoDigitarPacientes();
-                                            }
-                                        }
-                                    } else if (res.valores[0] === '2') {
-                                        pacientes = pacientes.filter(p => p.minutos !== pacEncontrado.minutos);
-                                        document.getElementById('listaPacientes').value = formatarPacientesParaTextarea(pacientes);
-                                        aoDigitarPacientes();
-                                    }
-                                }
-                                return;
-                            }
-                        }
-
-                        const canvasPosition = Chart.helpers.getRelativePosition(e, meuGrafico);
-                        const dataX = meuGrafico.scales.x.getValueForPixel(canvasPosition.x);
-                        if (dataX !== undefined) {
-                            let minutosArredondados = Math.round(dataX / 5) * 5;
-                            let horarioSugerido = minutosParaHoraStr(minutosArredondados);
-
-                            const resAdd = await abrirDialogo({
-                                titulo: 'Adicionar Evento',
-                                mensagem: `Adicionar às ${horarioSugerido}?\n1 - Paciente\n2 - Dose Extra (${a0Inicial} mCi)`,
-                                inputs: [{ value: '1', placeholder: '1 ou 2' }]
-                            });
-
-                            if (resAdd.confirmado) {
-                                if (resAdd.valores[0] === '1') {
-                                    const resPac = await abrirDialogo({
-                                        titulo: 'Novo Paciente',
-                                        mensagem: 'Informe os dados do paciente:',
-                                        inputs: [
-                                            { label: 'Horário (HH:MM)', value: horarioSugerido },
-                                            { label: 'Peso (kg)', value: '80', type: 'number' },
-                                            { label: 'Exame (opcional)', value: '' },
-                                            { label: 'RIA Custom (opcional)', value: '', type: 'number' }
-                                        ]
-                                    });
-                                    if (resPac.confirmado && resPac.valores[0] && resPac.valores[1]) {
-                                        let textarea = document.getElementById('listaPacientes');
-                                        let hStr = resPac.valores[0].trim();
-                                        let pStr = resPac.valores[1].trim();
-                                        let exStr = resPac.valores[2] ? resPac.valores[2].trim() : '';
-                                        let rStr = resPac.valores[3] ? resPac.valores[3].trim() : '';
-
-                                        let linhaNova = `${hStr} = ${pStr}`;
-                                        if (exStr) {
-                                            linhaNova += ` | Exame: ${exStr}`;
-                                        }
-                                        if (rStr && !isNaN(rStr) && parseFloat(rStr) > 0) {
-                                            linhaNova += ` @ ${rStr}`;
-                                        }
-
-                                        textarea.value = textarea.value.trim() ? textarea.value.trim() + '\n' + linhaNova : linhaNova;
-                                        aoDigitarPacientes();
-                                    }
-                                } else if (resAdd.valores[0] === '2') {
-                                    estado.cache.reposicoesExtras[dataAtual].push(horarioSugerido);
-                                    aoDigitarPacientes();
-                                }
-                            }
-                        }
-                    },
                     scales: {
                         y: { 
                             beginAtZero: true, 
@@ -1676,9 +1504,7 @@
                             position: 'bottom',
                             title: { display: true, text: i18n[idiomaAtual].chartXTitle },
                             ticks: {
-                                callback: function(value) {
-                                    return minutosParaHoraStr(value);
-                                },
+                                callback: function(value) { return minutosParaHoraStr(value); },
                                 stepSize: 30
                             }
                         }
