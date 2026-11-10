@@ -165,8 +165,17 @@
             gap: 15px;
             align-items: start;
         }
+
+        .input-rapido-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 5px;
+            align-items: end;
+        }
         @media (max-width: 768px) {
             .config-grid { grid-template-columns: 1fr; }
+            .input-rapido-grid { grid-template-columns: 1fr; }
         }
 
         .footer-copyright {
@@ -190,14 +199,6 @@
             font-size: 11px;
             color: #64748b;
             font-style: italic;
-        }
-
-        .input-rapido-container {
-            display: flex;
-            gap: 10px;
-            margin-top: 5px;
-            align-items: center;
-            flex-wrap: wrap;
         }
 
         dialog#modalDialogo {
@@ -243,6 +244,9 @@
                 border-top: 1px solid #e2e8f0;
                 padding-top: 15px;
             }
+			    #dataConsultaPrint {
+        display: block !important;
+    }
         }
         #detalhes-diarios-print { display: none; }
     </style>
@@ -326,22 +330,36 @@
     </div>
 
     <label data-i18n="lblQuickAdd">Adicionar Paciente Rápido (Máscara automática):</label>
-    <div class="input-rapido-container">
-        <input type="text" id="inputHoraRapida" placeholder="Horário (Ex: 0730)" style="flex: 1; min-width: 110px;" maxlength="5">
-        <input type="number" id="inputPesoRapido" placeholder="Peso em kg (Ex: 80)" style="flex: 1; min-width: 110px;">
-        
-        <div style="display: flex; align-items: center; gap: 6px; flex: 1.2; min-width: 160px;">
-            <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px; cursor: pointer; white-space: nowrap;">
-                <input type="checkbox" id="chkRiaCustom" onchange="document.getElementById('inputRiaRapida').style.display = this.checked ? 'block' : 'none';"> RIA por Paciente
-            </label>
-            <input type="number" id="inputRiaRapida" placeholder="RIA (Ex: 0.07)" step="0.01" style="display: none; width: 100%; margin-top: 0;" />
+    
+    <div class="input-rapido-grid">
+        <div>
+            <label style="margin-top:0; font-size:12px;" data-i18n="lblTime">Horário:</label>
+            <input type="text" id="inputHoraRapida" placeholder="Ex: 0730" maxlength="5">
         </div>
-
-        <button type="button" class="btn-success" onclick="adicionarPacienteRapido()" style="margin-top: 0; width: auto; padding: 9px 16px;" data-i18n="btnAddQuick">+ Adicionar</button>
+        <div>
+            <label style="margin-top:0; font-size:12px;" data-i18n="lblWeight">Peso (kg):</label>
+            <input type="number" id="inputPesoRapido" placeholder="Ex: 80">
+        </div>
+        <div>
+            <label style="margin-top:0; font-size:12px;" data-i18n="lblExam">Exame (Opcional):</label>
+            <input type="text" id="inputExameRapido" placeholder="Ex: PET-CT F-18">
+        </div>
+        <div>
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                <label style="display: flex; align-items: center; gap: 3px; margin: 0; font-size: 11px; cursor: pointer; white-space: nowrap;">
+                    <input type="checkbox" id="chkRiaCustom" onchange="document.getElementById('inputRiaRapida').style.display = this.checked ? 'block' : 'none';">Ria Por Paciente:
+                </label>
+                <input type="number" id="inputRiaRapida" placeholder="0.07" step="0.01" style="display: none; width: 100%; margin-top: 0; padding: 9px;" />
+            </div>
+        </div>
+        <div style="grid-column: span 4;">
+            <button type="button" class="btn-success" onclick="adicionarPacienteRapido()" style="margin-top: 5px; height: 41px; width: 100%;" data-i18n="btnAddQuick">+ Adicionar Paciente</button>
+        </div>
     </div>
-    <span style="font-size: 11px; color: #64748b;" data-i18n="hintQuickAdd">Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.</span>
 
-    <label for="listaPacientes" style="margin-top: 15px;" data-i18n="lblFullList">Lista Completa (Somente Editar e Excluir):</label>
+    <span style="font-size: 11px; color: #64748b; display: block; margin-top: 8px;" data-i18n="hintQuickAdd">Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.</span>
+
+    <label for="listaPacientes" style="margin-top: 15px;" data-i18n="lblFullList">Lista Completa (Somente Leitura - Somente Editar e Excluir):</label>
     <textarea id="listaPacientes" rows="5" oninput="aoDigitarPacientes()" onkeydown="if(event.key==='Enter'){ event.preventDefault(); alert('Para inserir novos pacientes, utilize o botão Adicionar acima.'); }" style="background: #ffffff;" placeholder="Os pacientes inseridos aparecerão aqui..."></textarea>
 
     <div class="result" id="resultado">
@@ -353,9 +371,9 @@
 <div class="card">
     <h3 id="tituloGraficoTeto" data-i18n="titleChart">Curva do Decaimento e Reposições</h3>
     <p style="font-size: 13px; color: #475569; margin-top: -5px; line-height: 1.4;" data-i18n="legendChart">
-        🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante).<br>
+        🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante). Clicar na Bola Vermelha Remove paciente e Altera Dados.<br>
         🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior).<br>
-        🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais.<br>
+        🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais. Clicar em qualquer área do gráfico adiciona dose extra.<br>
         ✨ <b>Passe o mouse em qualquer área do gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.
     </p>
     <div class="chart-container">
@@ -373,14 +391,16 @@
 
     <textarea id="listaPedido" rows="6" readonly style="background: #f8fafc; font-family: monospace; margin-top: 10px;" placeholder="A lista de horários aparecerá aqui..."></textarea>
     <button class="btn-warning" onclick="baixarTxtPedido()" data-i18n="btnDownloadTxt">Baixar Lista em TXT</button>
-    <button class="btn-warning" onclick="imprimirPedido()" style="background:#0ea5e9;" data-i18n="btnPrintOrder">Imprimir Apenas o Pedido</button>
 </div>
 
 <div class="card stats">
+    <div class="card stats">
     <h3><span data-i18n="titleConsolidated">Relatório Consolidado</span> <span id="sync-status" class="loading">Carregando dados...</span></h3>
     <p><strong data-i18n="lblTotalPatients">Total de Pacientes Atendidos (7 dias):</strong> <span id="stat-total">0</span></p>
     <p><strong data-i18n="lblSavedDoses">Doses Economizadas (Estimativa):</strong> <span id="stat-economia">0</span></p>
     
+    <p id="dataConsultaPrint" style="display: none; font-weight: 600; color: #065f46; margin-top: 10px;"></p>
+
     <div id="detalhes-diarios-print">
         <h4 style="color: #065f46; margin-bottom: 10px;" data-i18n="titleDailyDetails">Detalhamento Diário (Últimos 7 Dias):</h4>
         <div id="lista-detalhes-print"></div>
@@ -391,7 +411,7 @@
 </div>
 
 <div class="footer-copyright" data-i18n="footerCopyright">
-    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.2
+    Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.6
 </div>
 
 <script>
@@ -430,25 +450,25 @@
             lblQuickAdd: "Adicionar Paciente Rápido (Máscara automática):",
             phQuickTime: "Horário (Ex: 0730)",
             phQuickWeight: "Peso em kg (Ex: 80)",
-            btnAddQuick: "+ Adicionar",
+            phQuickExam: "Exame (Opcional)",
+            btnAddQuick: "+ Adicionar Paciente",
             hintQuickAdd: "Dica: Digite apenas os números do horário (ex: 0800) que os dois-pontos entram sozinhos.",
             lblFullList: "Lista Completa (Somente Leitura - Somente Editar e Excluir):",
             msgWaitingData: "Aguardando inserção de dados dos pacientes...",
             titleChart: "Curva do Decaimento e Reposições",
-            legendChart: "🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante).<br>🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior).<br>🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais.<br>✨ <b>Passe o mouse em qualquer área do gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.",
+            legendChart: "🔴 <b>Bolas Vermelhas:</b> Pacientes (Mostra peso, dose aplicada e atividade restante). Clicar na Bola Vermelha Remove paciente e Altera Dados.<br>🔵 <b>Bolas Azuis (Acima):</b> Dose Estoque (Soma a Dose Automática + Resíduo Anterior). <br>🟠 <b>Bolas Laranjas (Acima):</b> Doses Extras Manuais. Clicar em qualquer área do gráfico adiciona dose extra<</br>✨ <b>Passe o mouse em qualquer área do gráfico</b> para ver a hora e o estoque exato. Clique para adicionar ou gerenciar eventos.",
             titleOrderList: "Lista para Pedido (Distribuidora - TXT)",
             lblOrderRule: "Regra de Horário para Distribuidora:",
             optExactTime: "Horário Exato (Ex: 08:00, 09:00, 09:30)",
             optHourly: "De Hora em Hora (Antecipado / Consolidado - Ex: 09:00 (2 doses))",
             btnDownloadTxt: "Baixar Lista em TXT",
-            btnPrintOrder: "Imprimir Apenas o Pedido",
             titleConsolidated: "Relatório Consolidado",
             lblTotalPatients: "Total de Pacientes Atendidos (7 dias):",
             lblSavedDoses: "Doses Economizadas (Estimativa):",
             titleDailyDetails: "Detalhamento Diário (Últimos 7 Dias):",
             btnPrintPdf: "Imprimir / Salvar Resumo (PDF)",
             btnClearHistory: "Zerar / Limpar Histórico Antigo",
-            footerCopyright: "Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.2",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos os direitos Reservados - Versão 4.9.6",
             btnCancel: "Cancelar",
             btnOk: "OK",
             saving: "(Salvando...)",
@@ -460,7 +480,7 @@
             errLoad: "(Erro ao carregar)",
             savingsText: "Fator: {fator} (Economia de {val}% da dose)",
             increaseText: "Fator: {fator} (Aumento de {val}% da dose)",
-            standardDoseText: "Fator: 1.00 (Dose Padrão)",
+            standardDoseText: "Factor: 1.00 (Dose Padrão)",
             simCompleted: "Simulação concluída! (Razão Rotina: <strong>{rotina}</strong> | RIA: <strong>{ria}</strong> | Lote: <strong>{a0} mCi</strong>)<br><strong>Pedidos:</strong> {qtd} | <strong>Economia do dia:</strong> {econ}",
             patientsAttended: "pacientes atendidos",
             noRecords: "Nenhum registro nos últimos 7 dias.",
@@ -492,7 +512,8 @@
             lblQuickAdd: "Agregar Paciente Rápido (Máscara auto):",
             phQuickTime: "Hora (Ej: 0730)",
             phQuickWeight: "Peso en kg (Ej: 80)",
-            btnAddQuick: "+ Agregar",
+            phQuickExam: "Estudio (Opcional)",
+            btnAddQuick: "+ Agregar Paciente",
             hintQuickAdd: "Consejo: Ingrese solo números de hora (ej: 0800) y dos puntos se añaden solos.",
             lblFullList: "Lista Completa (Solo Lectura - Solo Edita y Elimina):",
             msgWaitingData: "Esperando ingreso de datos de pacientes...",
@@ -503,14 +524,13 @@
             optExactTime: "Horario Exacto (Ej: 08:00, 09:00, 09:30)",
             optHourly: "Cada Hora (Anticipado / Consolidado - Ej: 09:00 (2 doses))",
             btnDownloadTxt: "Descargar Lista en TXT",
-            btnPrintOrder: "Imprimir Solo Pedido",
             titleConsolidated: "Informe Consolidado",
             lblTotalPatients: "Total de Pacientes Atendidos (7 días):",
             lblSavedDoses: "Dosis Ahorradas (Estimación):",
             titleDailyDetails: "Detalle Diario (Últimos 7 Días):",
             btnPrintPdf: "Imprimir / Guardar Resumen (PDF)",
             btnClearHistory: "Borrar / Limpiar Historial Antiguo",
-            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9.2",
+            footerCopyright: "Copyright © 2026 Hospiline. Todos los derechos reservados - Versão 4.9.6",
             btnCancel: "Cancelar",
             btnOk: "Aceptar",
             saving: "(Guardando...)",
@@ -559,6 +579,7 @@
 
         document.getElementById('inputHoraRapida').placeholder = i18n[lang].phQuickTime;
         document.getElementById('inputPesoRapido').placeholder = i18n[lang].phQuickWeight;
+        document.getElementById('inputExameRapido').placeholder = i18n[lang].phQuickExam;
         
         document.getElementById('btnLangPt').classList.remove('active');
         document.getElementById('btnLangEs').classList.remove('active');
@@ -722,7 +743,9 @@
             recalcularFatorAutomatico();
             atualizarRelatorioConsolidado();
             
-            if (document.activeElement !== document.getElementById('listaPacientes') && !estado.salvando) {
+            // BLINDAGEM: Só carrega os dados para a tela se o filtro de data já estiver preenchido
+            const filtroDataEl = document.getElementById('filtroData');
+            if (filtroDataEl && filtroDataEl.value && document.activeElement !== document.getElementById('listaPacientes') && !estado.salvando) {
                 carregarDadosPorData();
             }
             
@@ -746,7 +769,7 @@
             const diffTime = hoje - dataReg;
             const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
-            if (diffDays > DIAS_HISTORICO || diffDays < 0) {
+            if (diffDays > DIAS_HISTORICO) {
                 delete estado.banco.historicoDias[dataStr];
                 houveRemocao = true;
             }
@@ -759,6 +782,8 @@
         if (!window.fbDb) return;
         
         const dataSelecionada = document.getElementById('filtroData').value;
+        if (!dataSelecionada) return; // Evita salvar em chave vazia
+
         const textoPacientes = document.getElementById('listaPacientes').value;
         const radiofarmaco = document.getElementById('radiofarmaco').value;
         const razaoRotina = document.getElementById('razaoRotina').value;
@@ -895,7 +920,7 @@
                 if (diffDays >= 0 && diffDays <= DIAS_HISTORICO) {
                     let dia = estado.banco.historicoDias[dataStr];
                     if (dia && dia.textoPacientes) {
-                        let linhas = dia.textoPacientes.split('\n').filter(l => l.trim() !== '');
+                        let linhas = dia.textoPacientes.split(/(?=\s\d{1,2}:\d{2})|\n/).map(l => l.trim()).filter(l => l !== '');
                         let qtdDia = linhas.length;
                         totalPacientes += qtdDia;
                         
@@ -904,7 +929,16 @@
                         let economiaDia = qtdDia * (dosePadraoDia * (1 - fator)); 
                         totalEconomia += Math.max(0, economiaDia);
 
-                        listaDetalhesHTML += `<div>• <b>${dataStr}</b>: ${qtdDia} ${i18n[idiomaAtual].patientsAttended}</div>`;
+                        let pacientesDetalheHtml = "";
+                        linhas.forEach(l => {
+                            let parsed = parseLinhaPaciente(l);
+                            if (parsed) {
+                                let txtExame = parsed.exame ? ` - <b>Exame:</b> ${parsed.exame}` : '';
+                                pacientesDetalheHtml += `<div style="font-size: 12px; margin-left: 15px; color: #334155;">• ${parsed.horaStr} - Peso: ${parsed.peso} kg${txtExame}</div>`;
+                            }
+                        });
+
+                        listaDetalhesHTML += `<div style="margin-bottom: 8px;">• <b>${dataStr}</b> (${qtdDia} ${i18n[idiomaAtual].patientsAttended}):<br>${pacientesDetalheHtml}</div>`;
                     }
                 }
             });
@@ -913,11 +947,6 @@
         document.getElementById('stat-total').innerText = totalPacientes;
         document.getElementById('stat-economia').innerText = totalEconomia.toFixed(1) + " mCi";
         document.getElementById('lista-detalhes-print').innerHTML = listaDetalhesHTML || i18n[idiomaAtual].noRecords;
-        
-        const tituloStat = document.querySelector('.card.stats h3');
-        if (tituloStat) {
-            tituloStat.innerHTML = `<span data-i18n="titleConsolidated">Relatório Consolidado</span>  <span id="sync-status" class="loading">(Sincronizado)</span>`;
-        }
     }
 
     window.onload = function() {
@@ -935,23 +964,23 @@
         });
 
         document.getElementById('inputPesoRapido').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                adicionarPacienteRapido();
-            }
+            if (e.key === 'Enter') { adicionarPacienteRapido(); }
         });
-
+        document.getElementById('inputExameRapido').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') { adicionarPacienteRapido(); }
+        });
         document.getElementById('inputRiaRapida').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                adicionarPacienteRapido();
-            }
+            if (e.key === 'Enter') { adicionarPacienteRapido(); }
         });
         
         recalcularFatorAutomatico();
+        carregarDadosPorData();
     };
 
     function adicionarPacienteRapido() {
         let hora = document.getElementById('inputHoraRapida').value.trim();
         let peso = document.getElementById('inputPesoRapido').value.trim();
+        let exame = document.getElementById('inputExameRapido').value.trim();
         let chkRia = document.getElementById('chkRiaCustom').checked;
         let riaCustom = document.getElementById('inputRiaRapida').value.trim();
 
@@ -965,6 +994,9 @@
         }
 
         let linhaNueva = `${hora} = ${peso}`;
+        if (exame) {
+            linhaNueva += ` | Exame: ${exame}`;
+        }
         if (chkRia && riaCustom && !isNaN(riaCustom) && parseFloat(riaCustom) > 0) {
             linhaNueva += ` @ ${riaCustom}`;
         }
@@ -979,6 +1011,7 @@
 
         document.getElementById('inputHoraRapida').value = "";
         document.getElementById('inputPesoRapido').value = "";
+        document.getElementById('inputExameRapido').value = "";
         document.getElementById('inputRiaRapida').value = "";
         document.getElementById('chkRiaCustom').checked = false;
         document.getElementById('inputRiaRapida').style.display = 'none';
@@ -1013,15 +1046,11 @@
 
         if (parseFloat(percentualExato) > 0) {
             divInfo.style.color = "#059669";
-            divInfo.innerText = i18n[idiomaAtual].savingsText
-                .replace('{fator}', fatorStr)
-                .replace('{val}', percentualExato.replace('.', ','));
+            divInfo.innerText = i18n[idiomaAtual].savingsText.replace('{fator}', fatorStr).replace('{val}', percentualExato.replace('.', ','));
         } else if (parseFloat(percentualExato) < 0) {
             let aumento = Math.abs(parseFloat(percentualExato)).toFixed(1);
             divInfo.style.color = "#d97706";
-            divInfo.innerText = i18n[idiomaAtual].increaseText
-                .replace('{fator}', fatorStr)
-                .replace('{val}', aumento.replace('.', ','));
+            divInfo.innerText = i18n[idiomaAtual].increaseText.replace('{fator}', fatorStr).replace('{val}', aumento.replace('.', ','));
         } else {
             divInfo.style.color = "#64748b";
             divInfo.innerText = i18n[idiomaAtual].standardDoseText;
@@ -1068,12 +1097,24 @@
         if (!linhaLimpa) return null;
 
         let riaEspecifica = null;
+        let exameEspecifico = null;
         let partePac = linhaLimpa;
 
-        if (linhaLimpa.includes('@')) {
-            const partesRia = linhaLimpa.split('@');
+        if (partePac.includes('@')) {
+            const partesRia = partePac.split('@');
             partePac = partesRia[0].trim();
             riaEspecifica = parseFloat(partesRia[1].trim());
+        }
+
+        if (partePac.includes('|')) {
+            const partesExame = partePac.split('|');
+            partePac = partesExame[0].trim();
+            let textoExameExtra = partesExame[1].trim();
+            if (textoExameExtra.toLowerCase().startsWith('exame:')) {
+                exameEspecifico = textoExameExtra.substring(6).trim();
+            } else {
+                exameEspecifico = textoExameExtra;
+            }
         }
 
         const partes = partePac.includes('=') ? partePac.split('=') : partePac.split(' ');
@@ -1090,6 +1131,7 @@
             minutos, 
             horaStr: minutosParaHoraStr(minutos), 
             peso: pesoVal, 
+            exame: exameEspecifico,
             riaCustom: (!isNaN(riaEspecifica) && riaEspecifica > 0) ? riaEspecifica : null 
         };
     }
@@ -1097,9 +1139,8 @@
     function formatarPacientesParaTextarea(arrPacientes) {
         return arrPacientes.map(p => {
             let str = `${p.horaStr} = ${p.peso}`;
-            if (p.riaCustom) {
-                str += ` @ ${p.riaCustom}`;
-            }
+            if (p.exame) { str += ` | Exame: ${p.exame}`; }
+            if (p.riaCustom) { str += ` @ ${p.riaCustom}`; }
             return str;
         }).join('\n');
     }
@@ -1110,6 +1151,7 @@
             temporizadorSalvamento = null;
             await salvarDadosNuvem();
         }
+        // Garante que a visualização acompanha a data de atendimento inserida
         document.getElementById('filtroData').value = document.getElementById('dataInsercao').value;
         carregarDadosPorData();
     }
@@ -1127,6 +1169,7 @@
     function carregarDadosPorData() {
         estado.carregandoRemoto = true;
         const dataSelecionada = document.getElementById('filtroData').value;
+        
         if (estado.banco.historicoDias && estado.banco.historicoDias[dataSelecionada]) {
             let dadosDia = estado.banco.historicoDias[dataSelecionada];
             document.getElementById('listaPacientes').value = dadosDia.textoPacientes || "";
@@ -1137,21 +1180,11 @@
                 document.getElementById('radiofarmaco').value = dadosDia.radiofarmaco;
                 aoMudarRadiofarmaco();
             }
-            if (dadosDia.razaoRotina) {
-                document.getElementById('razaoRotina').value = dadosDia.razaoRotina;
-            }
-            if (dadosDia.razaoRIA) {
-                document.getElementById('razaoRIA').value = dadosDia.razaoRIA;
-            }
-            if (dadosDia.fatorSubtle) {
-                document.getElementById('fatorSubtle').value = dadosDia.fatorSubtle;
-            }
-            if (dadosDia.meiaVidaCustom) {
-                document.getElementById('meiaVidaCustom').value = dadosDia.meiaVidaCustom;
-            }
-            if (dadosDia.dosePadraoLote) {
-                document.getElementById('dosePadraoLote').value = dadosDia.dosePadraoLote;
-            }
+            if (dadosDia.razaoRotina) { document.getElementById('razaoRotina').value = dadosDia.razaoRotina; }
+            if (dadosDia.razaoRIA) { document.getElementById('razaoRIA').value = dadosDia.razaoRIA; }
+            if (dadosDia.fatorSubtle) { document.getElementById('fatorSubtle').value = dadosDia.fatorSubtle; }
+            if (dadosDia.meiaVidaCustom) { document.getElementById('meiaVidaCustom').value = dadosDia.meiaVidaCustom; }
+            if (dadosDia.dosePadraoLote) { document.getElementById('dosePadraoLote').value = dadosDia.dosePadraoLote; }
         } else {
             document.getElementById('listaPacientes').value = "";
             estado.cache.reposicoesExtras[dataSelecionada] = [];
@@ -1190,7 +1223,12 @@
             const lambda = 0.693 / meiaVidaMin;
             let pacientes = [];
             
-            textoPacientes.split('\n').forEach(linha => {
+            const linhasProcessadas = textoPacientes
+                .split(/(?=\s\d{1,2}:\d{2})|\n/)
+                .map(l => l.trim())
+                .filter(l => l !== '');
+
+            linhasProcessadas.forEach(linha => {
                 const p = parseLinhaPaciente(linha);
                 if (p) {
                     let riaUtilizada = p.riaCustom ? p.riaCustom : razaoRIAVal;
@@ -1314,6 +1352,7 @@
                         ativPre: parseFloat(picoEstoqueNoMinuto.toFixed(2)),
                         dosePaciente: pacObj ? pacObj.doseNecessaria : 0,
                         peso: pacObj ? pacObj.peso : 0,
+                        exame: pacObj ? pacObj.exame : null,
                         riaCustom: pacObj ? pacObj.riaCustom : null
                     });
                 } else {
@@ -1432,6 +1471,9 @@
                                         let linhasTooltip = [`Atividade Restante: ${ativRestante.toFixed(2).replace('.', ',')} mCi`];
                                         
                                         if (infoP) {
+                                            if (infoP.exame) {
+                                                linhasTooltip.push(`Exame: ${infoP.exame}`);
+                                            }
                                             let strRia = infoP.riaCustom ? ` (RIA Custom: ${infoP.riaCustom})` : '';
                                             linhasTooltip.push(`Dose Aplicada: ${infoP.dosePaciente.toFixed(2).replace('.', ',')} mCi (Peso: ${infoP.peso} kg${strRia})`);
                                             let h = Math.floor(minutosTotais / 60);
@@ -1611,9 +1653,7 @@
                             position: 'bottom',
                             title: { display: true, text: i18n[idiomaAtual].chartXTitle },
                             ticks: {
-                                callback: function(value) {
-                                    return minutosParaHoraStr(value);
-                                },
+                                callback: function(value) { return minutosParaHoraStr(value); },
                                 stepSize: 30
                             }
                         }
@@ -1687,18 +1727,6 @@
         a.download = `Pedido_Radiofarmacos_${document.getElementById('filtroData').value}.txt`;
         a.click();
         URL.revokeObjectURL(url);
-    }
-
-    function imprimirPedido() {
-        const conteudo = document.getElementById('listaPedido').value;
-        if (!conteudo) {
-            alert("Nenhum pedido para imprimir.");
-            return;
-        }
-        let w = window.open('', '_blank');
-        w.document.write(`<html><head><title>Imprimir Pedido</title></head><body style="font-family:monospace; padding:20px;"><h3>Pedido de Radiofármacos</h3><pre>${conteudo}</pre></body></html>`);
-        w.document.close();
-        w.print();
     }
 </script>
 </body>
